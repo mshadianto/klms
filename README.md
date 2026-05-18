@@ -2,7 +2,7 @@
 
 Prototipe aplikasi terintegrasi **Knowledge Management & Learning System** untuk BPKH (Badan Pengelola Keuangan Haji). Mencakup pengelolaan pelatihan end-to-end, 4 pilar KM (SME, Knowledge Map, CoP, Knowledge Asset), dan Talent Management dengan 9-Box mapping & succession planning.
 
-🌐 **Live demo:** https://mshadianto.github.io/klms/
+🌐 **Live demo:** https://klms.mshadianto.id/
 
 ## Stack
 

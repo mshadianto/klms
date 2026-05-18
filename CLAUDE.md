@@ -8,7 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `src/main.jsx` — React entry point.
 - `src/index.css` — Tailwind directives + tiny base reset.
 - `index.html` — Vite HTML shell.
-- `vite.config.js` — **`base: '/klms/'`** (matches the GitHub Pages repo name; change this if the repo is renamed or the URL will 404 on assets).
+- `vite.config.js` — **`base: '/'`** (site is served from custom domain root `klms.mshadianto.id`; if reverting to github.io subpath, switch back to `'/klms/'`).
+- `public/CNAME` — custom domain marker for GitHub Pages; copied to `dist/` as-is. Changing this changes the domain Pages serves on.
 - `mockups/` — 3 standalone HTML mockups (`dashboard.html`, `knowledge-management.html`, `talent-management.html`). These predate the JSX and are not loaded by the React app — they serve as the design reference and can be opened directly in a browser.
 - `.github/workflows/deploy.yml` — builds Vite and deploys `dist/` to GitHub Pages on every push to `main`.
 
@@ -16,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173/klms/ (note the base path)
+npm run dev      # http://localhost:5173/
 npm run build    # -> dist/
 npm run preview
 ```
@@ -25,7 +26,7 @@ There is no test setup, no linter config, and no git pre-commit hooks.
 
 ## Deploy
 
-Pushing to `main` triggers `.github/workflows/deploy.yml`, which builds and publishes to GitHub Pages. Pages source must be set to "GitHub Actions" (already configured). Live URL: https://mshadianto.github.io/klms/
+Pushing to `main` triggers `.github/workflows/deploy.yml`, which builds and publishes to GitHub Pages. Pages source must be set to "GitHub Actions" (already configured). Live URL: https://klms.mshadianto.id/ (custom domain via `public/CNAME`; `mshadianto.github.io/klms/` 301-redirects there).
 
 ## Architecture of `src/App.jsx`
 
