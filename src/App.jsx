@@ -636,13 +636,15 @@ const AppFooter = () => (
           </a>
         </div>
       </div>
-      <div className="text-[10.5px] text-slate-500 leading-relaxed bg-slate-50 border border-slate-200 rounded-md px-3 py-2">
-        <span className="font-semibold text-slate-700">Disclaimer:</span>{' '}
-        Aplikasi ini adalah <b>prototipe</b> Knowledge Management & Learning System untuk keperluan demo & evaluasi internal.
-        Seluruh data pegawai, pelatihan, dan dokumen yang ditampilkan bersifat <b>fiktif / dummy</b> dan tidak merepresentasikan
-        data riil Badan Pengelola Keuangan Haji (BPKH). Aplikasi belum melalui audit keamanan; jangan input data sensitif atau
-        rahasia jabatan ke instance demo ini. Persistensi menggunakan <i>localStorage</i> browser — data tidak tersinkronisasi
-        antar perangkat. © {new Date().getFullYear()} MS Hadianto. Disediakan apa adanya tanpa jaminan apapun.
+      <div className="text-[10.5px] text-slate-500 leading-relaxed bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+        <span className="font-semibold text-amber-800">Disclaimer:</span>{' '}
+        KMLS adalah <b>inisiasi personal</b> MS Hadianto sebagai prototipe Knowledge Management & Learning System
+        — <b>BUKAN aplikasi resmi Badan Pengelola Keuangan Haji (BPKH)</b> dan tidak merepresentasikan posisi, kebijakan,
+        atau sistem informasi lembaga. Seluruh nama, data pegawai, pelatihan, dan dokumen yang ditampilkan bersifat
+        <b> fiktif / dummy</b> untuk keperluan demo & eksplorasi konsep semata. Aplikasi belum melalui audit keamanan
+        formal; jangan input data sensitif, pribadi, atau rahasia jabatan ke instance demo ini. Persistensi menggunakan
+        <i> localStorage</i> browser — data tidak tersinkronisasi antar perangkat dan dapat hilang sewaktu-waktu.
+        © {new Date().getFullYear()} MS Hadianto. Disediakan apa adanya, tanpa jaminan apapun.
       </div>
     </div>
   </footer>
