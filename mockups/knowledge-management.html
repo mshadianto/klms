@@ -1,0 +1,475 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+--sidebar-w:200px;
+--green:#0F6E56;--green-light:#E1F5EE;--green-mid:#1D9E75;--green-dark:#085041;
+--amber:#BA7517;--amber-light:#FAEEDA;--amber-dark:#854F0B;
+--blue:#185FA5;--blue-light:#E6F1FB;--blue-dark:#0C447C;
+--purple:#534AB7;--purple-light:#EEEDFE;--purple-dark:#3C3489;
+--coral:#993C1D;--coral-light:#FAECE7;--coral-dark:#712B13;
+--red:#A32D2D;--red-light:#FCEBEB;
+--gray50:#F1EFE8;--gray200:#B4B2A9;--gray600:#5F5E5A;
+}
+body{font-family:'Segoe UI',sans-serif;background:var(--color-background-tertiary,#F5F5F0);color:var(--color-text-primary);font-size:13px}
+.app{display:flex;height:100vh;min-height:720px;max-height:900px;overflow:hidden;border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary)}
+.sidebar{width:var(--sidebar-w);background:var(--green);display:flex;flex-direction:column;flex-shrink:0}
+.logo-area{padding:16px 14px 12px;border-bottom:0.5px solid rgba(255,255,255,0.1)}
+.logo-badge{display:flex;align-items:center;gap:8px}
+.logo-icon{width:28px;height:28px;background:rgba(255,255,255,0.15);border-radius:7px;display:flex;align-items:center;justify-content:center}
+.logo-icon i{font-size:15px;color:#fff}
+.logo-text{color:#fff;font-size:12px;font-weight:500}
+.logo-sub{color:rgba(255,255,255,0.6);font-size:9px}
+.nav{flex:1;padding:10px 7px;overflow-y:auto}
+.nav-section{margin-bottom:12px}
+.nav-label{font-size:9px;font-weight:500;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.8px;padding:0 8px;margin-bottom:5px}
+.nav-item{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:5px;cursor:pointer;color:rgba(255,255,255,0.75);font-size:11px;transition:all 0.15s}
+.nav-item:hover{background:rgba(255,255,255,0.1);color:#fff}
+.nav-item.active{background:rgba(255,255,255,0.18);color:#fff;font-weight:500}
+.nav-item.sub{padding-left:24px;font-size:10.5px;color:rgba(255,255,255,0.65)}
+.nav-item.sub.active{background:rgba(255,255,255,0.22);color:#fff}
+.nav-item i{font-size:14px;flex-shrink:0}
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;background:var(--color-background-tertiary,#F8F8F5)}
+.topbar{display:flex;align-items:center;gap:12px;padding:11px 18px;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);flex-shrink:0}
+.breadcrumb{font-size:10px;color:var(--color-text-secondary);margin-bottom:2px}
+.page-title{font-size:15px;font-weight:500;color:var(--color-text-primary)}
+.topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{display:flex;align-items:center;gap:5px;padding:6px 11px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-size:11px;cursor:pointer}
+.btn.primary{background:var(--green);color:#fff;border-color:var(--green)}
+.btn i{font-size:13px}
+.search-box{display:flex;align-items:center;gap:6px;background:var(--color-background-secondary);border-radius:6px;padding:6px 10px;width:220px}
+.search-box i{color:var(--color-text-secondary);font-size:13px}
+.search-box input{border:none;outline:none;background:transparent;flex:1;font-size:11px;color:var(--color-text-primary)}
+.content{padding:14px 18px;flex:1}
+
+.pillars{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.pillar{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px;position:relative;overflow:hidden;cursor:pointer;transition:all 0.15s}
+.pillar:hover{border-color:var(--color-border-secondary)}
+.pillar-stripe{position:absolute;left:0;top:0;bottom:0;width:3px}
+.pillar.sme .pillar-stripe{background:var(--purple)}
+.pillar.kmap .pillar-stripe{background:var(--blue)}
+.pillar.cop .pillar-stripe{background:var(--amber)}
+.pillar.kasset .pillar-stripe{background:var(--green-mid)}
+.pillar-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+.pillar.sme .pillar-icon{background:var(--purple-light)}
+.pillar.sme .pillar-icon i{color:var(--purple);font-size:17px}
+.pillar.kmap .pillar-icon{background:var(--blue-light)}
+.pillar.kmap .pillar-icon i{color:var(--blue);font-size:17px}
+.pillar.cop .pillar-icon{background:var(--amber-light)}
+.pillar.cop .pillar-icon i{color:var(--amber);font-size:17px}
+.pillar.kasset .pillar-icon{background:var(--green-light)}
+.pillar.kasset .pillar-icon i{color:var(--green-mid);font-size:17px}
+.pillar-num{position:absolute;top:10px;right:12px;font-size:9px;color:var(--color-text-secondary);font-weight:500;letter-spacing:1px}
+.pillar-title{font-size:12px;font-weight:500;color:var(--color-text-primary);line-height:1.3;margin-bottom:4px}
+.pillar-sub{font-size:10px;color:var(--color-text-secondary);line-height:1.4;margin-bottom:10px}
+.pillar-stat{display:flex;align-items:baseline;gap:4px;margin-bottom:3px}
+.pillar-stat .v{font-size:18px;font-weight:500;color:var(--color-text-primary)}
+.pillar-stat .u{font-size:10px;color:var(--color-text-secondary)}
+.pillar-delta{font-size:9px;color:var(--green-mid)}
+
+.row2{display:grid;grid-template-columns:1.1fr 1fr;gap:10px;margin-bottom:10px}
+.row2b{display:grid;grid-template-columns:1fr 1.2fr;gap:10px}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.card-title{font-size:11px;font-weight:500;color:var(--color-text-primary);display:flex;align-items:center;gap:5px}
+.card-title .pill-tag{font-size:8px;padding:2px 6px;border-radius:8px;font-weight:500;letter-spacing:0.4px}
+.tag-sme{background:var(--purple-light);color:var(--purple-dark)}
+.tag-kmap{background:var(--blue-light);color:var(--blue-dark)}
+.tag-cop{background:var(--amber-light);color:var(--amber-dark)}
+.tag-kasset{background:var(--green-light);color:var(--green-dark)}
+.view-all{font-size:10px;color:var(--green);cursor:pointer}
+
+/* SME Directory */
+.sme-row{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.sme-row:last-child{border-bottom:none;padding-bottom:0}
+.sme-avatar{width:30px;height:30px;border-radius:50%;background:var(--purple-light);display:flex;align-items:center;justify-content:center;color:var(--purple-dark);font-size:10px;font-weight:500;flex-shrink:0}
+.sme-info{flex:1;min-width:0}
+.sme-name{font-size:11px;font-weight:500;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sme-domain{font-size:9px;color:var(--color-text-secondary)}
+.sme-level{display:flex;gap:2px;align-items:center}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--gray50)}
+.dot.on{background:var(--purple)}
+.sme-cert{font-size:9px;background:var(--purple-light);color:var(--purple-dark);padding:2px 6px;border-radius:8px;font-weight:500}
+
+/* Knowledge Map */
+.kmap-canvas{position:relative;height:200px;background:linear-gradient(0deg,var(--blue-light) 0%,#F4FAFF 100%);border-radius:8px;overflow:hidden}
+.kmap-canvas svg{width:100%;height:100%}
+.kmap-legend{display:flex;gap:10px;margin-top:8px;font-size:9px;color:var(--color-text-secondary);flex-wrap:wrap}
+.kmap-legend span{display:flex;align-items:center;gap:3px}
+.kmap-legend .ld{width:8px;height:8px;border-radius:50%}
+
+/* CoP */
+.cop-card{background:var(--color-background-secondary);border-radius:8px;padding:10px;margin-bottom:7px;border-left:3px solid var(--amber)}
+.cop-card:last-child{margin-bottom:0}
+.cop-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.cop-name{font-size:11px;font-weight:500;color:var(--color-text-primary)}
+.cop-members{font-size:9px;color:var(--amber-dark);background:#fff;padding:2px 6px;border-radius:8px;font-weight:500}
+.cop-meta{font-size:9px;color:var(--color-text-secondary);display:flex;gap:8px;flex-wrap:wrap}
+.cop-meta span{display:flex;align-items:center;gap:2px}
+.cop-activity-bar{height:3px;background:#fff;border-radius:2px;margin-top:6px;overflow:hidden}
+.cop-activity-bar > div{height:100%;background:var(--amber);border-radius:2px}
+
+/* Knowledge Asset Lifecycle */
+.lifecycle{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;align-items:center;margin-bottom:12px}
+.lc-step{text-align:center;position:relative}
+.lc-icon{width:36px;height:36px;border-radius:50%;background:var(--green-light);border:1.5px solid var(--green-mid);display:flex;align-items:center;justify-content:center;margin:0 auto 4px}
+.lc-icon i{color:var(--green-mid);font-size:15px}
+.lc-label{font-size:9px;font-weight:500;color:var(--color-text-primary)}
+.lc-count{font-size:14px;font-weight:500;color:var(--green-dark)}
+.lc-arrow{position:absolute;right:-12px;top:14px;color:var(--green-mid);font-size:14px}
+
+/* Asset list */
+.asset-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:10.5px}
+.asset-row:last-child{border-bottom:none}
+.asset-type{width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.asset-type i{font-size:13px}
+.at-doc{background:var(--blue-light)}
+.at-doc i{color:var(--blue)}
+.at-vid{background:var(--coral-light)}
+.at-vid i{color:var(--coral)}
+.at-tpl{background:var(--purple-light)}
+.at-tpl i{color:var(--purple)}
+.at-cs{background:var(--amber-light)}
+.at-cs i{color:var(--amber)}
+.asset-name{flex:1;min-width:0;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.asset-tags{display:flex;gap:3px}
+.asset-tags span{font-size:8px;padding:1.5px 5px;border-radius:6px;background:var(--gray50);color:var(--gray600);font-weight:500}
+.asset-meta{font-size:9px;color:var(--color-text-secondary);display:flex;align-items:center;gap:3px;flex-shrink:0}
+</style>
+
+<h2 class="sr-only">Mockup modul Knowledge Management KMLS BPKH menampilkan 4 pilar utama: Pengembangan SME, Knowledge Map, Community of Practice, dan Pengelolaan Knowledge Asset.</h2>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="logo-area">
+      <div class="logo-badge">
+        <div class="logo-icon"><i class="ti ti-school" aria-hidden="true"></i></div>
+        <div>
+          <div class="logo-text">KMLS</div>
+          <div class="logo-sub">BPKH Learning Suite</div>
+        </div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">
+        <div class="nav-label">Utama</div>
+        <div class="nav-item"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> Dashboard</div>
+        <div class="nav-item"><i class="ti ti-send" aria-hidden="true"></i> Pelatihan</div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Knowledge Mgmt</div>
+        <div class="nav-item active"><i class="ti ti-brain" aria-hidden="true"></i> KM Overview</div>
+        <div class="nav-item sub"><i class="ti ti-user-star" aria-hidden="true"></i> SME Development</div>
+        <div class="nav-item sub"><i class="ti ti-map-2" aria-hidden="true"></i> Knowledge Map</div>
+        <div class="nav-item sub"><i class="ti ti-users-group" aria-hidden="true"></i> Community of Practice</div>
+        <div class="nav-item sub"><i class="ti ti-database" aria-hidden="true"></i> Knowledge Asset</div>
+        <div class="nav-item"><i class="ti ti-message-circle" aria-hidden="true"></i> Forum Diskusi</div>
+        <div class="nav-item"><i class="ti ti-presentation" aria-hidden="true"></i> KM Session</div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Laporan</div>
+        <div class="nav-item"><i class="ti ti-report-analytics" aria-hidden="true"></i> Analitik KM</div>
+        <div class="nav-item"><i class="ti ti-settings" aria-hidden="true"></i> Pengaturan</div>
+      </div>
+    </nav>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="breadcrumb">KMLS / Knowledge Management</div>
+        <div class="page-title">Knowledge Management Hub</div>
+      </div>
+      <div class="topbar-actions">
+        <div class="search-box">
+          <i class="ti ti-search" aria-hidden="true"></i>
+          <input placeholder="Cari SME, dokumen, CoP..." />
+        </div>
+        <button class="btn"><i class="ti ti-download" aria-hidden="true"></i> Ekspor</button>
+        <button class="btn primary"><i class="ti ti-plus" aria-hidden="true"></i> Tambah</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- 4 PILAR KM -->
+      <div class="pillars">
+        <div class="pillar sme">
+          <div class="pillar-stripe"></div>
+          <div class="pillar-num">PILAR 01</div>
+          <div class="pillar-icon"><i class="ti ti-user-star" aria-hidden="true"></i></div>
+          <div class="pillar-title">Pengembangan SME</div>
+          <div class="pillar-sub">Subject Matter Expert per domain keahlian</div>
+          <div class="pillar-stat"><span class="v">24</span><span class="u">SME aktif · 8 domain</span></div>
+          <div class="pillar-delta"><i class="ti ti-trending-up" aria-hidden="true"></i> +5 SME baru Q2</div>
+        </div>
+        <div class="pillar kmap">
+          <div class="pillar-stripe"></div>
+          <div class="pillar-num">PILAR 02</div>
+          <div class="pillar-icon"><i class="ti ti-map-2" aria-hidden="true"></i></div>
+          <div class="pillar-title">Knowledge Map</div>
+          <div class="pillar-sub">Pemetaan domain pengetahuan & gap</div>
+          <div class="pillar-stat"><span class="v">42</span><span class="u">node · 3 gap kritis</span></div>
+          <div class="pillar-delta" style="color:var(--amber)"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Perlu pengayaan</div>
+        </div>
+        <div class="pillar cop">
+          <div class="pillar-stripe"></div>
+          <div class="pillar-num">PILAR 03</div>
+          <div class="pillar-icon"><i class="ti ti-users-group" aria-hidden="true"></i></div>
+          <div class="pillar-title">Community of Practice</div>
+          <div class="pillar-sub">Pengembangan & penguatan komunitas</div>
+          <div class="pillar-stat"><span class="v">7</span><span class="u">CoP · 186 anggota</span></div>
+          <div class="pillar-delta"><i class="ti ti-trending-up" aria-hidden="true"></i> Engagement 78%</div>
+        </div>
+        <div class="pillar kasset">
+          <div class="pillar-stripe"></div>
+          <div class="pillar-num">PILAR 04</div>
+          <div class="pillar-icon"><i class="ti ti-database" aria-hidden="true"></i></div>
+          <div class="pillar-title">Knowledge Asset</div>
+          <div class="pillar-sub">Capture, curate, share, reuse</div>
+          <div class="pillar-stat"><span class="v">348</span><span class="u">aset · 1.2k akses/bln</span></div>
+          <div class="pillar-delta"><i class="ti ti-trending-up" aria-hidden="true"></i> Reuse rate 64%</div>
+        </div>
+      </div>
+
+      <!-- ROW 2: SME Directory + Knowledge Map -->
+      <div class="row2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="pill-tag tag-sme">PILAR 01</span> SME Directory · Top Contributor</div>
+            <span class="view-all">Semua SME →</span>
+          </div>
+          <div class="sme-row">
+            <div class="sme-avatar">SH</div>
+            <div class="sme-info">
+              <div class="sme-name">Sopian Hadianto</div>
+              <div class="sme-domain">GRC · Audit Internal · AI-Powered Building</div>
+            </div>
+            <div class="sme-level">
+              <span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span>
+            </div>
+            <span class="sme-cert">Expert</span>
+          </div>
+          <div class="sme-row">
+            <div class="sme-avatar">RJ</div>
+            <div class="sme-info">
+              <div class="sme-name">Rojikin</div>
+              <div class="sme-domain">Audit Komite · Governance</div>
+            </div>
+            <div class="sme-level">
+              <span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span>
+            </div>
+            <span class="sme-cert">Expert</span>
+          </div>
+          <div class="sme-row">
+            <div class="sme-avatar">FN</div>
+            <div class="sme-info">
+              <div class="sme-name">Firmansyah N.</div>
+              <div class="sme-domain">Pengawasan · Risk Management</div>
+            </div>
+            <div class="sme-level">
+              <span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot"></span>
+            </div>
+            <span class="sme-cert">Senior</span>
+          </div>
+          <div class="sme-row">
+            <div class="sme-avatar">RS</div>
+            <div class="sme-info">
+              <div class="sme-name">Rina Septiani</div>
+              <div class="sme-domain">Investasi Syariah · Sukuk</div>
+            </div>
+            <div class="sme-level">
+              <span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot"></span>
+            </div>
+            <span class="sme-cert">Senior</span>
+          </div>
+          <div class="sme-row">
+            <div class="sme-avatar">AF</div>
+            <div class="sme-info">
+              <div class="sme-name">Ahmad Fauzi</div>
+              <div class="sme-domain">IT Audit · Cybersecurity</div>
+            </div>
+            <div class="sme-level">
+              <span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot"></span><span class="dot"></span>
+            </div>
+            <span class="sme-cert">Mid</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="pill-tag tag-kmap">PILAR 02</span> Knowledge Map · Domain BPKH</div>
+            <span class="view-all">Map penuh →</span>
+          </div>
+          <div class="kmap-canvas">
+            <svg viewBox="0 0 360 200" preserveAspectRatio="xMidYMid meet">
+              <line x1="180" y1="100" x2="80" y2="50" stroke="#85B7EB" stroke-width="1"/>
+              <line x1="180" y1="100" x2="290" y2="55" stroke="#85B7EB" stroke-width="1"/>
+              <line x1="180" y1="100" x2="60" y2="140" stroke="#85B7EB" stroke-width="1"/>
+              <line x1="180" y1="100" x2="305" y2="150" stroke="#85B7EB" stroke-width="1"/>
+              <line x1="180" y1="100" x2="180" y2="170" stroke="#85B7EB" stroke-width="1"/>
+              <line x1="180" y1="100" x2="120" y2="30" stroke="#85B7EB" stroke-width="1"/>
+              <line x1="180" y1="100" x2="240" y2="30" stroke="#85B7EB" stroke-width="1"/>
+              <line x1="80" y1="50" x2="120" y2="30" stroke="#B5D4F4" stroke-width="0.8"/>
+              <line x1="240" y1="30" x2="290" y2="55" stroke="#B5D4F4" stroke-width="0.8"/>
+              <circle cx="180" cy="100" r="22" fill="#185FA5"/>
+              <text x="180" y="98" text-anchor="middle" fill="#fff" font-size="8" font-weight="500" font-family="Segoe UI">BPKH</text>
+              <text x="180" y="108" text-anchor="middle" fill="#fff" font-size="7" font-family="Segoe UI">Core</text>
+              <circle cx="80" cy="50" r="16" fill="#378ADD"/>
+              <text x="80" y="52" text-anchor="middle" fill="#fff" font-size="7" font-weight="500" font-family="Segoe UI">Audit</text>
+              <circle cx="290" cy="55" r="16" fill="#378ADD"/>
+              <text x="290" y="57" text-anchor="middle" fill="#fff" font-size="7" font-weight="500" font-family="Segoe UI">Invest</text>
+              <circle cx="60" cy="140" r="15" fill="#378ADD"/>
+              <text x="60" y="142" text-anchor="middle" fill="#fff" font-size="6.5" font-weight="500" font-family="Segoe UI">Syariah</text>
+              <circle cx="305" cy="150" r="15" fill="#378ADD"/>
+              <text x="305" y="152" text-anchor="middle" fill="#fff" font-size="7" font-weight="500" font-family="Segoe UI">GRC</text>
+              <circle cx="180" cy="170" r="14" fill="#378ADD"/>
+              <text x="180" y="172" text-anchor="middle" fill="#fff" font-size="7" font-weight="500" font-family="Segoe UI">Haji</text>
+              <circle cx="120" cy="30" r="12" fill="#EF9F27" stroke="#BA7517" stroke-width="1.5"/>
+              <text x="120" y="32" text-anchor="middle" fill="#412402" font-size="6" font-weight="500" font-family="Segoe UI">IT/Tech</text>
+              <circle cx="240" cy="30" r="12" fill="#EF9F27" stroke="#BA7517" stroke-width="1.5" stroke-dasharray="2,2"/>
+              <text x="240" y="32" text-anchor="middle" fill="#412402" font-size="6" font-weight="500" font-family="Segoe UI">ESG</text>
+              <circle cx="30" cy="100" r="10" fill="#F09595" stroke="#A32D2D" stroke-width="1.5" stroke-dasharray="2,2"/>
+              <text x="30" y="102" text-anchor="middle" fill="#501313" font-size="5.5" font-weight="500" font-family="Segoe UI">AI/ML</text>
+              <circle cx="330" cy="100" r="10" fill="#F09595" stroke="#A32D2D" stroke-width="1.5" stroke-dasharray="2,2"/>
+              <text x="330" y="102" text-anchor="middle" fill="#501313" font-size="5.5" font-weight="500" font-family="Segoe UI">Fintech</text>
+            </svg>
+          </div>
+          <div class="kmap-legend">
+            <span><span class="ld" style="background:#185FA5"></span>Core domain</span>
+            <span><span class="ld" style="background:#378ADD"></span>Domain matang</span>
+            <span><span class="ld" style="background:#EF9F27"></span>Sedang dikembangkan</span>
+            <span><span class="ld" style="background:#F09595"></span>Gap kritis</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 3: CoP + Knowledge Asset -->
+      <div class="row2b">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="pill-tag tag-cop">PILAR 03</span> Community of Practice Aktif</div>
+            <span class="view-all">Semua CoP →</span>
+          </div>
+          <div class="cop-card">
+            <div class="cop-head">
+              <span class="cop-name">CoP Audit & GRC</span>
+              <span class="cop-members"><i class="ti ti-users" aria-hidden="true"></i> 32 anggota</span>
+            </div>
+            <div class="cop-meta">
+              <span><i class="ti ti-message-2" aria-hidden="true"></i> 48 diskusi/bln</span>
+              <span><i class="ti ti-calendar" aria-hidden="true"></i> Sharing 12 Jun</span>
+              <span><i class="ti ti-user-star" aria-hidden="true"></i> Lead: Rojikin</span>
+            </div>
+            <div class="cop-activity-bar"><div style="width:92%"></div></div>
+          </div>
+          <div class="cop-card">
+            <div class="cop-head">
+              <span class="cop-name">CoP Investasi Syariah</span>
+              <span class="cop-members"><i class="ti ti-users" aria-hidden="true"></i> 28 anggota</span>
+            </div>
+            <div class="cop-meta">
+              <span><i class="ti ti-message-2" aria-hidden="true"></i> 35 diskusi/bln</span>
+              <span><i class="ti ti-calendar" aria-hidden="true"></i> Sharing 20 Jun</span>
+              <span><i class="ti ti-user-star" aria-hidden="true"></i> Lead: Rina S.</span>
+            </div>
+            <div class="cop-activity-bar"><div style="width:75%"></div></div>
+          </div>
+          <div class="cop-card">
+            <div class="cop-head">
+              <span class="cop-name">CoP IT & Digital Innovation</span>
+              <span class="cop-members"><i class="ti ti-users" aria-hidden="true"></i> 24 anggota</span>
+            </div>
+            <div class="cop-meta">
+              <span><i class="ti ti-message-2" aria-hidden="true"></i> 28 diskusi/bln</span>
+              <span><i class="ti ti-calendar" aria-hidden="true"></i> Webinar 25 Jun</span>
+              <span><i class="ti ti-user-star" aria-hidden="true"></i> Lead: Ahmad F.</span>
+            </div>
+            <div class="cop-activity-bar"><div style="width:68%"></div></div>
+          </div>
+          <div class="cop-card" style="border-left-color:var(--gray200)">
+            <div class="cop-head">
+              <span class="cop-name">CoP Pelayanan Haji</span>
+              <span class="cop-members" style="color:var(--gray600)"><i class="ti ti-users" aria-hidden="true"></i> 19 anggota</span>
+            </div>
+            <div class="cop-meta">
+              <span><i class="ti ti-message-2" aria-hidden="true"></i> 12 diskusi/bln</span>
+              <span style="color:var(--amber)"><i class="ti ti-alert-circle" aria-hidden="true"></i> Perlu revitalisasi</span>
+            </div>
+            <div class="cop-activity-bar"><div style="width:32%;background:var(--gray200)"></div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="pill-tag tag-kasset">PILAR 04</span> Knowledge Asset Lifecycle</div>
+            <span class="view-all">Repositori →</span>
+          </div>
+          <div class="lifecycle">
+            <div class="lc-step">
+              <div class="lc-icon"><i class="ti ti-bulb" aria-hidden="true"></i></div>
+              <div class="lc-count">48</div>
+              <div class="lc-label">Capture</div>
+              <span class="lc-arrow"><i class="ti ti-chevron-right" aria-hidden="true"></i></span>
+            </div>
+            <div class="lc-step">
+              <div class="lc-icon"><i class="ti ti-checkup-list" aria-hidden="true"></i></div>
+              <div class="lc-count">36</div>
+              <div class="lc-label">Curate</div>
+              <span class="lc-arrow"><i class="ti ti-chevron-right" aria-hidden="true"></i></span>
+            </div>
+            <div class="lc-step">
+              <div class="lc-icon"><i class="ti ti-database" aria-hidden="true"></i></div>
+              <div class="lc-count">348</div>
+              <div class="lc-label">Store</div>
+              <span class="lc-arrow"><i class="ti ti-chevron-right" aria-hidden="true"></i></span>
+            </div>
+            <div class="lc-step">
+              <div class="lc-icon"><i class="ti ti-share" aria-hidden="true"></i></div>
+              <div class="lc-count">1,247</div>
+              <div class="lc-label">Share</div>
+              <span class="lc-arrow"><i class="ti ti-chevron-right" aria-hidden="true"></i></span>
+            </div>
+            <div class="lc-step">
+              <div class="lc-icon"><i class="ti ti-refresh" aria-hidden="true"></i></div>
+              <div class="lc-count">64%</div>
+              <div class="lc-label">Reuse</div>
+            </div>
+          </div>
+
+          <div class="asset-row">
+            <div class="asset-type at-doc"><i class="ti ti-file-text" aria-hidden="true"></i></div>
+            <div class="asset-name">Pedoman Audit Berbasis Risiko v2.0</div>
+            <div class="asset-tags"><span>Audit</span><span>Pedoman</span></div>
+            <div class="asset-meta"><i class="ti ti-eye" aria-hidden="true"></i> 142</div>
+          </div>
+          <div class="asset-row">
+            <div class="asset-type at-cs"><i class="ti ti-clipboard-data" aria-hidden="true"></i></div>
+            <div class="asset-name">Case Study: HDC Settlement</div>
+            <div class="asset-tags"><span>Lesson</span><span>Investasi</span></div>
+            <div class="asset-meta"><i class="ti ti-eye" aria-hidden="true"></i> 89</div>
+          </div>
+          <div class="asset-row">
+            <div class="asset-type at-vid"><i class="ti ti-video" aria-hidden="true"></i></div>
+            <div class="asset-name">Rekaman: KM Session GRC Mei 2025</div>
+            <div class="asset-tags"><span>Video</span><span>GRC</span></div>
+            <div class="asset-meta"><i class="ti ti-eye" aria-hidden="true"></i> 67</div>
+          </div>
+          <div class="asset-row">
+            <div class="asset-type at-tpl"><i class="ti ti-template" aria-hidden="true"></i></div>
+            <div class="asset-name">Template Kertas Kerja Audit Syariah</div>
+            <div class="asset-tags"><span>Template</span><span>Syariah</span></div>
+            <div class="asset-meta"><i class="ti ti-eye" aria-hidden="true"></i> 54</div>
+          </div>
+          <div class="asset-row">
+            <div class="asset-type at-doc"><i class="ti ti-file-text" aria-hidden="true"></i></div>
+            <div class="asset-name">SOP Pengelolaan Dana Haji</div>
+            <div class="asset-tags"><span>SOP</span><span>Haji</span></div>
+            <div class="asset-meta"><i class="ti ti-eye" aria-hidden="true"></i> 38</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

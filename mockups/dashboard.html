@@ -1,0 +1,421 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+--sidebar-w:220px;
+--green:#0F6E56;--green-light:#E1F5EE;--green-mid:#1D9E75;
+--amber:#BA7517;--amber-light:#FAEEDA;
+--blue:#185FA5;--blue-light:#E6F1FB;
+--red:#A32D2D;--red-light:#FCEBEB;
+--gray50:#F1EFE8;--gray200:#B4B2A9;--gray600:#5F5E5A;
+}
+body{font-family:'Segoe UI',sans-serif;background:var(--color-background-tertiary,#F5F5F0);color:var(--color-text-primary);font-size:13px}
+.app{display:flex;height:100vh;min-height:600px;max-height:800px;overflow:hidden;border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary)}
+.sidebar{width:var(--sidebar-w);background:var(--green);display:flex;flex-direction:column;flex-shrink:0}
+.logo-area{padding:18px 16px 12px;border-bottom:0.5px solid rgba(255,255,255,0.1)}
+.logo-badge{display:flex;align-items:center;gap:8px}
+.logo-icon{width:30px;height:30px;background:rgba(255,255,255,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.logo-icon i{font-size:16px;color:#fff}
+.logo-text{color:#fff;font-size:13px;font-weight:500;line-height:1.3}
+.logo-sub{color:rgba(255,255,255,0.6);font-size:10px;font-weight:400}
+.nav{flex:1;padding:12px 8px;overflow-y:auto}
+.nav-section{margin-bottom:16px}
+.nav-label{font-size:9px;font-weight:500;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.8px;padding:0 8px;margin-bottom:6px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;cursor:pointer;color:rgba(255,255,255,0.75);font-size:12px;transition:all 0.15s}
+.nav-item:hover{background:rgba(255,255,255,0.1);color:#fff}
+.nav-item.active{background:rgba(255,255,255,0.18);color:#fff;font-weight:500}
+.nav-item i{font-size:15px;flex-shrink:0}
+.nav-item .badge{margin-left:auto;background:rgba(255,255,255,0.2);color:#fff;font-size:9px;padding:1px 6px;border-radius:10px}
+.nav-item .badge.hot{background:#E24B4A;color:#fff}
+.user-area{padding:12px;border-top:0.5px solid rgba(255,255,255,0.1)}
+.user-card{display:flex;align-items:center;gap:8px}
+.avatar{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:500;flex-shrink:0}
+.user-info{flex:1;min-width:0}
+.user-name{color:#fff;font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-role{color:rgba(255,255,255,0.5);font-size:9px}
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;background:var(--color-background-tertiary,#F8F8F5)}
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);flex-shrink:0}
+.page-title{font-size:15px;font-weight:500;color:var(--color-text-primary);flex:1}
+.page-sub{font-size:11px;color:var(--color-text-secondary)}
+.topbar-actions{display:flex;gap:8px;align-items:center}
+.btn{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-primary);font-size:12px;cursor:pointer}
+.btn.primary{background:var(--green);color:#fff;border-color:var(--green)}
+.btn i{font-size:14px}
+.notif-btn{position:relative;padding:7px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);cursor:pointer}
+.notif-btn i{font-size:17px;color:var(--color-text-secondary)}
+.notif-dot{position:absolute;top:5px;right:5px;width:7px;height:7px;background:#E24B4A;border-radius:50%;border:1.5px solid var(--color-background-primary)}
+.content{padding:16px 20px;flex:1}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.stat-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px 14px}
+.stat-label{font-size:10px;color:var(--color-text-secondary);margin-bottom:4px}
+.stat-value{font-size:20px;font-weight:500;color:var(--color-text-primary)}
+.stat-delta{font-size:10px;margin-top:3px}
+.stat-delta.up{color:var(--green-mid)}
+.stat-delta.warn{color:var(--amber)}
+.stat-icon{float:right;margin-top:-2px}
+.stat-icon i{font-size:20px}
+.row2{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;margin-bottom:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.card-title{font-size:12px;font-weight:500;color:var(--color-text-primary)}
+.view-all{font-size:11px;color:var(--green);cursor:pointer}
+.pengajuan-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.pengajuan-item:last-child{border-bottom:none;padding-bottom:0}
+.pitem-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pitem-icon.ext{background:var(--blue-light)}
+.pitem-icon.ext i{color:var(--blue);font-size:15px}
+.pitem-icon.int{background:var(--green-light)}
+.pitem-icon.int i{color:var(--green);font-size:15px}
+.pitem-icon.cert{background:var(--amber-light)}
+.pitem-icon.cert i{color:var(--amber);font-size:15px}
+.pitem-info{flex:1;min-width:0}
+.pitem-name{font-size:12px;font-weight:500;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pitem-meta{font-size:10px;color:var(--color-text-secondary)}
+.status-pill{font-size:10px;padding:2px 8px;border-radius:10px;flex-shrink:0;font-weight:500}
+.pill-pending{background:var(--amber-light);color:var(--amber)}
+.pill-approved{background:var(--green-light);color:var(--green)}
+.pill-review{background:var(--blue-light);color:var(--blue)}
+.pill-reject{background:var(--red-light);color:var(--red)}
+.progress-bar-wrap{margin-bottom:10px}
+.progress-label{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px}
+.progress-track{height:5px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px}
+.km-item{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.km-item:last-child{border-bottom:none;padding-bottom:0}
+.km-item i{font-size:15px;color:var(--gray200)}
+.km-label{flex:1;font-size:12px;color:var(--color-text-primary)}
+.km-tag{font-size:9px;padding:2px 7px;border-radius:10px}
+.km-tag.sop{background:var(--blue-light);color:var(--blue)}
+.km-tag.ll{background:var(--green-light);color:var(--green)}
+.km-tag.bp{background:var(--amber-light);color:var(--amber)}
+.km-downloads{font-size:10px;color:var(--color-text-secondary);display:flex;align-items:center;gap:3px}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:8px}
+.cal-head{font-size:9px;color:var(--color-text-secondary);text-align:center;padding:2px 0}
+.cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:10px;color:var(--color-text-primary);cursor:pointer}
+.cal-day.today{background:var(--green);color:#fff;font-weight:500}
+.cal-day.has-event{background:var(--green-light);color:var(--green);font-weight:500}
+.cal-day.other{color:var(--color-text-secondary)}
+.mini-chart{display:flex;align-items:flex-end;gap:4px;height:48px;margin-top:8px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.bar-seg{width:100%;border-radius:2px}
+.bar-xlabel{font-size:9px;color:var(--color-text-secondary)}
+.tab-bar{display:flex;gap:2px;margin-bottom:12px;background:var(--color-background-secondary);border-radius:8px;padding:3px}
+.tab{flex:1;text-align:center;padding:5px 8px;font-size:11px;border-radius:6px;cursor:pointer;color:var(--color-text-secondary)}
+.tab.active{background:var(--color-background-primary);color:var(--color-text-primary);font-weight:500;border:0.5px solid var(--color-border-tertiary)}
+.section-divider{font-size:9px;color:var(--color-text-secondary);font-weight:500;text-transform:uppercase;letter-spacing:0.6px;margin:4px 0 8px;padding-top:4px;border-top:0.5px solid var(--color-border-tertiary)}
+</style>
+
+<h2 class="sr-only">Mockup aplikasi KMLS — Knowledge Management & Learning System BPKH, menampilkan dashboard utama dengan statistik pelatihan, daftar pengajuan, repositori KM, dan kalender kegiatan.</h2>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="logo-area">
+      <div class="logo-badge">
+        <div class="logo-icon"><i class="ti ti-school" aria-hidden="true"></i></div>
+        <div>
+          <div class="logo-text">KMLS</div>
+          <div class="logo-sub">BPKH Learning Suite</div>
+        </div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">
+        <div class="nav-label">Utama</div>
+        <div class="nav-item active"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> Dashboard</div>
+        <div class="nav-item"><i class="ti ti-send" aria-hidden="true"></i> Pengajuan Pelatihan <span class="badge hot">3</span></div>
+        <div class="nav-item"><i class="ti ti-calendar-event" aria-hidden="true"></i> Jadwal & Kalender</div>
+        <div class="nav-item"><i class="ti ti-users" aria-hidden="true"></i> Peserta & Penugasan</div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Pelaksanaan</div>
+        <div class="nav-item"><i class="ti ti-clipboard-check" aria-hidden="true"></i> Absensi & Evaluasi</div>
+        <div class="nav-item"><i class="ti ti-file-upload" aria-hidden="true"></i> Laporan Pasca <span class="badge">1</span></div>
+        <div class="nav-item"><i class="ti ti-chart-bar" aria-hidden="true"></i> Realisasi Anggaran</div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Knowledge Mgmt</div>
+        <div class="nav-item"><i class="ti ti-books" aria-hidden="true"></i> Repositori Dokumen</div>
+        <div class="nav-item"><i class="ti ti-message-circle" aria-hidden="true"></i> Forum Diskusi</div>
+        <div class="nav-item"><i class="ti ti-presentation" aria-hidden="true"></i> KM Session</div>
+        <div class="nav-item"><i class="ti ti-bulb" aria-hidden="true"></i> Lesson Learned</div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Laporan</div>
+        <div class="nav-item"><i class="ti ti-report-analytics" aria-hidden="true"></i> Laporan SDM</div>
+        <div class="nav-item"><i class="ti ti-settings" aria-hidden="true"></i> Pengaturan</div>
+      </div>
+    </nav>
+    <div class="user-area">
+      <div class="user-card">
+        <div class="avatar">SP</div>
+        <div class="user-info">
+          <div class="user-name">Sopian Hadianto</div>
+          <div class="user-role">Komite Audit · Dewas</div>
+        </div>
+        <i class="ti ti-chevron-down" style="color:rgba(255,255,255,0.4);font-size:14px" aria-hidden="true"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="page-title">Dashboard KMLS</div>
+        <div class="page-sub">Periode: Januari — Juni 2025</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn"><i class="ti ti-filter" aria-hidden="true"></i> Filter</button>
+        <button class="btn"><i class="ti ti-download" aria-hidden="true"></i> Ekspor</button>
+        <button class="btn primary"><i class="ti ti-plus" aria-hidden="true"></i> Ajukan Pelatihan</button>
+        <div class="notif-btn"><i class="ti ti-bell" aria-hidden="true"></i><div class="notif-dot"></div></div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Total Pengajuan</div>
+          <div>
+            <span class="stat-value">47</span>
+            <span class="stat-icon"><i class="ti ti-send" style="color:var(--blue)" aria-hidden="true"></i></span>
+          </div>
+          <div class="stat-delta up"><i class="ti ti-trending-up" aria-hidden="true"></i> +12 dari Q1</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Jam Pelatihan Avg/Pegawai</div>
+          <div>
+            <span class="stat-value">31</span><span style="font-size:13px;color:var(--color-text-secondary)"> jam</span>
+            <span class="stat-icon"><i class="ti ti-clock" style="color:var(--green-mid)" aria-hidden="true"></i></span>
+          </div>
+          <div class="stat-delta up"><i class="ti ti-check" aria-hidden="true"></i> Target 40 jam/tahun</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Realisasi Anggaran</div>
+          <div>
+            <span class="stat-value">68</span><span style="font-size:13px;color:var(--color-text-secondary)">%</span>
+            <span class="stat-icon"><i class="ti ti-coin" style="color:var(--amber)" aria-hidden="true"></i></span>
+          </div>
+          <div class="stat-delta warn"><i class="ti ti-clock" aria-hidden="true"></i> Rp 2,1M tersisa</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Dokumen KM Aktif</div>
+          <div>
+            <span class="stat-value">124</span>
+            <span class="stat-icon"><i class="ti ti-books" style="color:var(--green)" aria-hidden="true"></i></span>
+          </div>
+          <div class="stat-delta up"><i class="ti ti-trending-up" aria-hidden="true"></i> +18 dokumen baru</div>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class="ti ti-send" style="font-size:14px;color:var(--green);margin-right:5px" aria-hidden="true"></i>Pengajuan Pelatihan Terkini</div>
+            <span class="view-all">Lihat semua →</span>
+          </div>
+          <div class="tab-bar">
+            <div class="tab active">Semua (47)</div>
+            <div class="tab">Menunggu (12)</div>
+            <div class="tab">Disetujui (28)</div>
+            <div class="tab">Selesai (7)</div>
+          </div>
+          <div class="pengajuan-item">
+            <div class="pitem-icon ext"><i class="ti ti-building" aria-hidden="true"></i></div>
+            <div class="pitem-info">
+              <div class="pitem-name">Sertifikasi CISA 2025 — Eksternal</div>
+              <div class="pitem-meta">Ahmad Fauzi · Divisi IT · 12 Jun 2025</div>
+            </div>
+            <span class="status-pill pill-pending">Menunggu</span>
+          </div>
+          <div class="pengajuan-item">
+            <div class="pitem-icon int"><i class="ti ti-home" aria-hidden="true"></i></div>
+            <div class="pitem-info">
+              <div class="pitem-name">Workshop GRC ISO 37000 — Internal</div>
+              <div class="pitem-meta">Seluruh Divisi · Aula BPKH · 5–6 Jun</div>
+            </div>
+            <span class="status-pill pill-approved">Disetujui</span>
+          </div>
+          <div class="pengajuan-item">
+            <div class="pitem-icon cert"><i class="ti ti-certificate" aria-hidden="true"></i></div>
+            <div class="pitem-info">
+              <div class="pitem-name">Training Manajemen Risiko Syariah</div>
+              <div class="pitem-meta">Rina Septiani · Divisi Investasi · 3 Jun</div>
+            </div>
+            <span class="status-pill pill-review">Review</span>
+          </div>
+          <div class="pengajuan-item">
+            <div class="pitem-icon ext"><i class="ti ti-building" aria-hidden="true"></i></div>
+            <div class="pitem-info">
+              <div class="pitem-name">Pelatihan Anti-Pencucian Uang PPATK</div>
+              <div class="pitem-meta">Budi Santoso · Kepatuhan · 28 Mei</div>
+            </div>
+            <span class="status-pill pill-approved">Disetujui</span>
+          </div>
+          <div class="pengajuan-item">
+            <div class="pitem-icon int"><i class="ti ti-home" aria-hidden="true"></i></div>
+            <div class="pitem-info">
+              <div class="pitem-name">In-house: Audit Berbasis Risiko</div>
+              <div class="pitem-meta">Tim Audit · Ruang Rapat 3 · 20 Mei</div>
+            </div>
+            <span class="status-pill pill-reject">Ditolak</span>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><i class="ti ti-chart-bar" style="font-size:14px;color:var(--green);margin-right:5px" aria-hidden="true"></i>Realisasi per Unit</div>
+            </div>
+            <div class="mini-chart">
+              <div class="bar-col">
+                <div class="bar-seg" style="height:38px;background:var(--green-mid)"></div>
+                <div class="bar-xlabel">Audit</div>
+              </div>
+              <div class="bar-col">
+                <div class="bar-seg" style="height:26px;background:var(--green-mid)"></div>
+                <div class="bar-xlabel">Invest</div>
+              </div>
+              <div class="bar-col">
+                <div class="bar-seg" style="height:42px;background:var(--green-mid)"></div>
+                <div class="bar-xlabel">IT</div>
+              </div>
+              <div class="bar-col">
+                <div class="bar-seg" style="height:20px;background:var(--green-mid)"></div>
+                <div class="bar-xlabel">SDM</div>
+              </div>
+              <div class="bar-col">
+                <div class="bar-seg" style="height:32px;background:var(--green-mid)"></div>
+                <div class="bar-xlabel">Kepatuhan</div>
+              </div>
+            </div>
+            <div style="margin-top:12px">
+              <div class="progress-bar-wrap">
+                <div class="progress-label"><span>Target jam/tahun</span><span>31 / 40 jam</span></div>
+                <div class="progress-track"><div class="progress-fill" style="width:77%;background:var(--green-mid)"></div></div>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-label"><span>Anggaran terpakai</span><span>68%</span></div>
+                <div class="progress-track"><div class="progress-fill" style="width:68%;background:var(--amber)"></div></div>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-label"><span>Laporan lengkap</span><span>85%</span></div>
+                <div class="progress-track"><div class="progress-fill" style="width:85%;background:var(--blue)"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><i class="ti ti-calendar" style="font-size:14px;color:var(--green);margin-right:5px" aria-hidden="true"></i>Kalender Juni 2025</div>
+            </div>
+            <div class="calendar-grid">
+              <div class="cal-head">Sen</div><div class="cal-head">Sel</div><div class="cal-head">Rab</div>
+              <div class="cal-head">Kam</div><div class="cal-head">Jum</div><div class="cal-head">Sab</div><div class="cal-head">Min</div>
+              <div class="cal-day other">26</div><div class="cal-day other">27</div><div class="cal-day other">28</div><div class="cal-day other">29</div><div class="cal-day other">30</div><div class="cal-day other">31</div><div class="cal-day">1</div>
+              <div class="cal-day">2</div><div class="cal-day">3</div><div class="cal-day has-event">4</div><div class="cal-day has-event">5</div><div class="cal-day has-event">6</div><div class="cal-day">7</div><div class="cal-day">8</div>
+              <div class="cal-day">9</div><div class="cal-day">10</div><div class="cal-day">11</div><div class="cal-day today">12</div><div class="cal-day">13</div><div class="cal-day">14</div><div class="cal-day">15</div>
+              <div class="cal-day">16</div><div class="cal-day">17</div><div class="cal-day has-event">18</div><div class="cal-day">19</div><div class="cal-day">20</div><div class="cal-day">21</div><div class="cal-day">22</div>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:10px;font-size:10px;color:var(--color-text-secondary)">
+              <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--green-mid);margin-right:3px"></span>Ada pelatihan</span>
+              <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:3px"></span>Hari ini</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row3">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class="ti ti-books" style="font-size:14px;color:var(--green);margin-right:5px" aria-hidden="true"></i>Repositori KM Terbaru</div>
+            <span class="view-all">Lihat →</span>
+          </div>
+          <div class="km-item">
+            <i class="ti ti-file-text" aria-hidden="true"></i>
+            <span class="km-label">SOP Pengajuan Pelatihan v3.1</span>
+            <span class="km-tag sop">SOP</span>
+          </div>
+          <div class="km-item">
+            <i class="ti ti-file-text" aria-hidden="true"></i>
+            <span class="km-label">Lesson Learned Audit TPPU 2025</span>
+            <span class="km-tag ll">LL</span>
+          </div>
+          <div class="km-item">
+            <i class="ti ti-file-text" aria-hidden="true"></i>
+            <span class="km-label">Best Practice Tata Kelola Haji</span>
+            <span class="km-tag bp">Best Practice</span>
+          </div>
+          <div class="km-item">
+            <i class="ti ti-file-text" aria-hidden="true"></i>
+            <span class="km-label">Ringkasan CISA Training Batch 2</span>
+            <span class="km-tag sop">Resume</span>
+          </div>
+          <div class="km-item">
+            <i class="ti ti-file-text" aria-hidden="true"></i>
+            <span class="km-label">Notulen KM Session — GRC</span>
+            <span class="km-tag ll">Notulen</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class="ti ti-clipboard-check" style="font-size:14px;color:var(--green);margin-right:5px" aria-hidden="true"></i>Laporan Pasca Pelatihan</div>
+            <span class="view-all">Lihat →</span>
+          </div>
+          <div class="pengajuan-item" style="padding:6px 0">
+            <div class="pitem-info">
+              <div class="pitem-name" style="font-size:11px">Workshop ISO 37001 — April</div>
+              <div class="pitem-meta">Laporan: Lengkap · Skor: 4.2/5</div>
+            </div>
+            <span class="status-pill pill-approved">✓</span>
+          </div>
+          <div class="pengajuan-item" style="padding:6px 0">
+            <div class="pitem-info">
+              <div class="pitem-name" style="font-size:11px">Training Risk Mgmt — Maret</div>
+              <div class="pitem-meta">Laporan: Lengkap · Skor: 3.8/5</div>
+            </div>
+            <span class="status-pill pill-approved">✓</span>
+          </div>
+          <div class="pengajuan-item" style="padding:6px 0">
+            <div class="pitem-info">
+              <div class="pitem-name" style="font-size:11px">Sertifikasi CFE — Feb</div>
+              <div class="pitem-meta">Laporan: Menunggu upload</div>
+            </div>
+            <span class="status-pill pill-pending">Pending</span>
+          </div>
+          <div class="pengajuan-item" style="padding:6px 0;border:none">
+            <div class="pitem-info">
+              <div class="pitem-name" style="font-size:11px">AML Training — Jan</div>
+              <div class="pitem-meta">Laporan: Lengkap · Skor: 4.5/5</div>
+            </div>
+            <span class="status-pill pill-approved">✓</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class="ti ti-presentation" style="font-size:14px;color:var(--green);margin-right:5px" aria-hidden="true"></i>KM Session Mendatang</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="padding:8px;background:var(--green-light);border-radius:8px;border-left:3px solid var(--green)">
+              <div style="font-size:11px;font-weight:500;color:#085041">Sharing Session GRC Q2</div>
+              <div style="font-size:10px;color:var(--green);margin-top:2px"><i class="ti ti-calendar" aria-hidden="true"></i> 18 Jun · 14.00 WIB</div>
+              <div style="font-size:10px;color:#0F6E56;margin-top:1px"><i class="ti ti-map-pin" aria-hidden="true"></i> Ruang Rapat Lantai 5</div>
+            </div>
+            <div style="padding:8px;background:var(--blue-light);border-radius:8px;border-left:3px solid var(--blue)">
+              <div style="font-size:11px;font-weight:500;color:#042C53">Forum Antifraud BPKH</div>
+              <div style="font-size:10px;color:var(--blue);margin-top:2px"><i class="ti ti-calendar" aria-hidden="true"></i> 25 Jun · 09.00 WIB</div>
+              <div style="font-size:10px;color:#185FA5;margin-top:1px"><i class="ti ti-video" aria-hidden="true"></i> Online — Zoom</div>
+            </div>
+            <div style="padding:8px;background:var(--amber-light);border-radius:8px;border-left:3px solid var(--amber)">
+              <div style="font-size:11px;font-weight:500;color:#412402">Bedah Buku: Audit Syariah</div>
+              <div style="font-size:10px;color:var(--amber);margin-top:2px"><i class="ti ti-calendar" aria-hidden="true"></i> 2 Jul · 13.00 WIB</div>
+              <div style="font-size:10px;color:#BA7517;margin-top:1px"><i class="ti ti-map-pin" aria-hidden="true"></i> Perpustakaan BPKH</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
