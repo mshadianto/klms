@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   LayoutDashboard, Send, Calendar, Users, BookOpen, MessageCircle, Settings as SettingsIcon,
   Bell, Search, Plus, X, Filter, Download, ChevronRight, ChevronDown, ChevronLeft, Menu,
@@ -6,15 +6,18 @@ import {
   Activity, ClipboardCheck, CheckCircle, XCircle, Clock, AlertTriangle, AlertCircle,
   Eye, Edit3, Trash2, Database, Map, Network, Video, Tag, Building2, Star, TrendingUp,
   RefreshCw, MoreVertical, Save, UserPlus, User, Sparkles, BookOpenCheck, MapPin,
-  ArrowRight, Layers, BarChart3
+  ArrowRight, Layers, BarChart3, ThumbsUp, ThumbsDown, Bookmark, History, MessageSquare,
+  HelpCircle, GitBranch, Compass, Route, Flame, Archive, FileCheck, Lightbulb, Link2,
+  TrendingDown, Send as SendIcon
 } from 'lucide-react';
 
 // =================================================================================
 // CONFIGURATION & CONSTANTS
 // =================================================================================
 
-const APP_VERSION = '1.0.0';
-const STORAGE_KEY = 'kmls:appdata:v1';
+const APP_VERSION = '1.1.0';
+const STORAGE_KEY = 'kmls:appdata:v2';
+const CURRENT_USER_ID = 'p001'; // active session user — Sopian Hadianto
 
 const NAV_STRUCTURE = [
   {
@@ -32,6 +35,10 @@ const NAV_STRUCTURE = [
       { id: 'km-map', label: 'Knowledge Map', icon: Map },
       { id: 'km-cop', label: 'Community of Practice', icon: Network },
       { id: 'km-asset', label: 'Knowledge Asset', icon: Database },
+      { id: 'km-paths', label: 'Learning Paths', icon: Route },
+      { id: 'km-skill', label: 'Skill Matrix', icon: Target },
+      { id: 'km-qa', label: 'Ask the Expert', icon: HelpCircle, badgeKey: 'openQuestions' },
+      { id: 'km-analytics', label: 'KM Analytics', icon: BarChart3 },
     ],
   },
   {
@@ -89,6 +96,27 @@ const ASSET_TYPES = {
   lesson: { label: 'Lesson Learned', icon: Sparkles, color: 'text-cyan-600 bg-cyan-50' },
 };
 
+const ASSET_STATUS = {
+  draft:     { label: 'Draft',     color: 'bg-slate-100 text-slate-700',       icon: Edit3 },
+  review:    { label: 'In Review', color: 'bg-amber-100 text-amber-800',       icon: Clock },
+  published: { label: 'Published', color: 'bg-emerald-100 text-emerald-800',   icon: CheckCircle },
+  archived:  { label: 'Archived',  color: 'bg-slate-200 text-slate-600',       icon: Archive },
+};
+
+const COMPETENCY_LEVELS = {
+  0: { label: 'None',         color: 'bg-slate-100 text-slate-500' },
+  1: { label: 'Foundational', color: 'bg-blue-100 text-blue-700' },
+  2: { label: 'Intermediate', color: 'bg-violet-100 text-violet-700' },
+  3: { label: 'Advanced',     color: 'bg-emerald-100 text-emerald-700' },
+  4: { label: 'Expert',       color: 'bg-amber-100 text-amber-800' },
+};
+
+const QUESTION_STATUS = {
+  open:      { label: 'Open',         color: 'bg-amber-100 text-amber-800' },
+  answered:  { label: 'Answered',     color: 'bg-blue-100 text-blue-800' },
+  resolved:  { label: 'Resolved',     color: 'bg-emerald-100 text-emerald-800' },
+};
+
 // =================================================================================
 // SEED DATA
 // =================================================================================
@@ -126,14 +154,92 @@ const SEED_DATA = {
     { id: 'sme006', pegawaiId: 'p008', domain: 'Compliance, APU-PPT', level: 'mid', sertifikasi: ['CAMS'], kontribusi: 9 },
   ],
   knowledgeAsset: [
-    { id: 'ka001', judul: 'Pedoman Audit Berbasis Risiko v2.0', type: 'pedoman', tags: ['Audit', 'Risk'], owner: 'p002', views: 142, createdAt: '2025-03-15' },
-    { id: 'ka002', judul: 'SOP Pengajuan Pelatihan v3.1', type: 'sop', tags: ['SDM', 'Procurement'], owner: 'p009', views: 98, createdAt: '2025-04-01' },
-    { id: 'ka003', judul: 'Case Study: HDC Settlement', type: 'case', tags: ['Investasi', 'Lesson'], owner: 'p004', views: 89, createdAt: '2025-04-12' },
-    { id: 'ka004', judul: 'Template Kertas Kerja Audit Syariah', type: 'template', tags: ['Audit', 'Syariah'], owner: 'p006', views: 54, createdAt: '2025-02-28' },
-    { id: 'ka005', judul: 'Rekaman: KM Session GRC Mei 2025', type: 'video', tags: ['GRC', 'Sharing'], owner: 'p001', views: 67, createdAt: '2025-05-10' },
-    { id: 'ka006', judul: 'Lesson Learned Audit TPPU 2025', type: 'lesson', tags: ['Audit', 'Compliance'], owner: 'p008', views: 41, createdAt: '2025-04-25' },
-    { id: 'ka007', judul: 'SOP Pengelolaan Dana Haji', type: 'sop', tags: ['Haji', 'Keuangan'], owner: 'p011', views: 38, createdAt: '2025-03-08' },
-    { id: 'ka008', judul: 'Best Practice Tata Kelola Haji', type: 'pedoman', tags: ['Haji', 'Governance'], owner: 'p003', views: 33, createdAt: '2025-03-22' },
+    { id: 'ka001', judul: 'Pedoman Audit Berbasis Risiko v2.0', type: 'pedoman', tags: ['Audit', 'Risk'], owner: 'p002', views: 142, createdAt: '2025-03-15', status: 'published', version: '2.0', reviewDate: '2026-03-15', description: 'Pedoman lengkap pelaksanaan audit berbasis risiko di lingkungan BPKH, mengacu pada IPPF 2024.', ratingsUp: 18, ratingsDown: 1, lastViewedAt: '2025-05-17', comments: [{ id: 'c1', userId: 'p006', text: 'Sangat membantu untuk penyusunan kertas kerja audit kuartalan.', createdAt: '2025-04-20' }] },
+    { id: 'ka002', judul: 'SOP Pengajuan Pelatihan v3.1', type: 'sop', tags: ['SDM', 'Procurement'], owner: 'p009', views: 98, createdAt: '2025-04-01', status: 'published', version: '3.1', reviewDate: '2026-04-01', description: 'Standar operasional pengajuan, approval, sampai laporan pelatihan pegawai BPKH.', ratingsUp: 12, ratingsDown: 0, lastViewedAt: '2025-05-18', comments: [] },
+    { id: 'ka003', judul: 'Case Study: HDC Settlement', type: 'case', tags: ['Investasi', 'Lesson'], owner: 'p004', views: 89, createdAt: '2025-04-12', status: 'published', version: '1.0', reviewDate: '2026-04-12', description: 'Studi kasus settlement Hajj Deposit Center, lengkap dengan timeline, root cause, dan recovery action.', ratingsUp: 15, ratingsDown: 2, lastViewedAt: '2025-05-16', comments: [] },
+    { id: 'ka004', judul: 'Template Kertas Kerja Audit Syariah', type: 'template', tags: ['Audit', 'Syariah'], owner: 'p006', views: 54, createdAt: '2025-02-28', status: 'review', version: '1.2', reviewDate: '2025-08-28', description: 'Template baku kertas kerja audit syariah, mencakup checklist DSN-MUI.', ratingsUp: 7, ratingsDown: 0, lastViewedAt: '2025-05-10', comments: [] },
+    { id: 'ka005', judul: 'Rekaman: KM Session GRC Mei 2025', type: 'video', tags: ['GRC', 'Sharing'], owner: 'p001', views: 67, createdAt: '2025-05-10', status: 'published', version: '1.0', reviewDate: '2026-05-10', description: 'Rekaman knowledge sharing session GRC tematik bulan Mei 2025 oleh Sopian Hadianto.', ratingsUp: 9, ratingsDown: 0, lastViewedAt: '2025-05-17', comments: [] },
+    { id: 'ka006', judul: 'Lesson Learned Audit TPPU 2025', type: 'lesson', tags: ['Audit', 'Compliance'], owner: 'p008', views: 41, createdAt: '2025-04-25', status: 'published', version: '1.0', reviewDate: '2026-04-25', description: 'Pelajaran kunci dari pelaksanaan audit TPPU Q1 2025 dan rekomendasi mitigasi.', ratingsUp: 11, ratingsDown: 1, lastViewedAt: '2025-05-14', comments: [] },
+    { id: 'ka007', judul: 'SOP Pengelolaan Dana Haji', type: 'sop', tags: ['Haji', 'Keuangan'], owner: 'p011', views: 38, createdAt: '2025-03-08', status: 'published', version: '1.5', reviewDate: '2025-09-08', description: 'SOP end-to-end pengelolaan dana haji, dari setoran sampai pembayaran biaya operasional.', ratingsUp: 6, ratingsDown: 0, lastViewedAt: '2025-04-30', comments: [] },
+    { id: 'ka008', judul: 'Best Practice Tata Kelola Haji', type: 'pedoman', tags: ['Haji', 'Governance'], owner: 'p003', views: 33, createdAt: '2025-03-22', status: 'published', version: '1.0', reviewDate: '2026-03-22', description: 'Kompilasi best practice tata kelola penyelenggaraan haji dari berbagai negara mitra.', ratingsUp: 5, ratingsDown: 0, lastViewedAt: '2024-11-12', comments: [] },
+  ],
+  bookmarks: [
+    { id: 'bm001', userId: 'p001', assetId: 'ka001', createdAt: '2025-04-22' },
+    { id: 'bm002', userId: 'p001', assetId: 'ka006', createdAt: '2025-05-02' },
+    { id: 'bm003', userId: 'p002', assetId: 'ka003', createdAt: '2025-04-30' },
+  ],
+  competencies: [
+    { id: 'cmp001', name: 'Audit Berbasis Risiko', domain: 'Audit Internal' },
+    { id: 'cmp002', name: 'Audit Syariah', domain: 'Audit Internal' },
+    { id: 'cmp003', name: 'Manajemen Risiko', domain: 'GRC' },
+    { id: 'cmp004', name: 'Compliance & APU-PPT', domain: 'Compliance' },
+    { id: 'cmp005', name: 'Analisis Investasi Syariah', domain: 'Investasi Syariah' },
+    { id: 'cmp006', name: 'Manajemen Sukuk', domain: 'Sukuk' },
+    { id: 'cmp007', name: 'Cybersecurity', domain: 'IT & Cybersecurity' },
+    { id: 'cmp008', name: 'Data Governance', domain: 'IT & Cybersecurity' },
+    { id: 'cmp009', name: 'Tata Kelola Haji', domain: 'Pengelolaan Haji' },
+    { id: 'cmp010', name: 'Leadership & Coaching', domain: 'Soft Skill' },
+  ],
+  roleRequirements: [
+    { jabatan: 'Anggota Komite Audit',    requirements: [['cmp001',4],['cmp003',3],['cmp004',3],['cmp010',3]] },
+    { jabatan: 'Ketua Komite Audit',      requirements: [['cmp001',4],['cmp003',4],['cmp004',3],['cmp010',4]] },
+    { jabatan: 'Auditor Madya',           requirements: [['cmp001',3],['cmp002',2],['cmp003',2]] },
+    { jabatan: 'Auditor Muda',            requirements: [['cmp001',2],['cmp002',1],['cmp003',1]] },
+    { jabatan: 'Analis Investasi Senior', requirements: [['cmp005',4],['cmp006',3],['cmp003',2]] },
+    { jabatan: 'IT Security Lead',        requirements: [['cmp007',4],['cmp008',3]] },
+    { jabatan: 'Compliance Officer',      requirements: [['cmp004',4],['cmp003',2]] },
+    { jabatan: 'Analis Keuangan',         requirements: [['cmp009',2],['cmp005',2]] },
+  ],
+  pegawaiCompetencies: [
+    { pegawaiId: 'p001', competencyId: 'cmp001', level: 4 },
+    { pegawaiId: 'p001', competencyId: 'cmp003', level: 4 },
+    { pegawaiId: 'p001', competencyId: 'cmp004', level: 3 },
+    { pegawaiId: 'p001', competencyId: 'cmp010', level: 3 },
+    { pegawaiId: 'p002', competencyId: 'cmp001', level: 4 },
+    { pegawaiId: 'p002', competencyId: 'cmp003', level: 3 },
+    { pegawaiId: 'p002', competencyId: 'cmp010', level: 4 },
+    { pegawaiId: 'p004', competencyId: 'cmp005', level: 4 },
+    { pegawaiId: 'p004', competencyId: 'cmp006', level: 3 },
+    { pegawaiId: 'p005', competencyId: 'cmp007', level: 3 },
+    { pegawaiId: 'p005', competencyId: 'cmp008', level: 2 },
+    { pegawaiId: 'p006', competencyId: 'cmp001', level: 2 },
+    { pegawaiId: 'p006', competencyId: 'cmp002', level: 2 },
+    { pegawaiId: 'p007', competencyId: 'cmp001', level: 1 },
+    { pegawaiId: 'p008', competencyId: 'cmp004', level: 3 },
+    { pegawaiId: 'p011', competencyId: 'cmp005', level: 1 },
+    { pegawaiId: 'p011', competencyId: 'cmp009', level: 1 },
+  ],
+  learningPaths: [
+    { id: 'lp001', title: 'Onboarding Auditor BPKH', targetRole: 'Auditor Muda', description: 'Path wajib untuk auditor baru: pemahaman audit berbasis risiko + GRC + syariah dasar.', createdBy: 'p002', steps: [
+      { type: 'asset', refId: 'ka001', title: 'Baca: Pedoman Audit Berbasis Risiko v2.0', estMinutes: 60 },
+      { type: 'asset', refId: 'ka004', title: 'Pelajari: Template Kertas Kerja Audit Syariah', estMinutes: 45 },
+      { type: 'asset', refId: 'ka006', title: 'Review: Lesson Learned Audit TPPU 2025', estMinutes: 30 },
+      { type: 'training', refId: null, title: 'Ikuti: Training Audit Berbasis Risiko', estMinutes: 480 },
+    ]},
+    { id: 'lp002', title: 'Compliance Fundamentals', targetRole: 'Compliance Officer', description: 'Penguatan kompetensi compliance & APU-PPT untuk pegawai Divisi Kepatuhan.', createdBy: 'p008', steps: [
+      { type: 'asset', refId: 'ka006', title: 'Baca: Lesson Learned Audit TPPU 2025', estMinutes: 30 },
+      { type: 'asset', refId: 'ka002', title: 'Pelajari: SOP Pengajuan Pelatihan v3.1', estMinutes: 20 },
+      { type: 'training', refId: null, title: 'Ikuti: Pelatihan APU-PPT PPATK', estMinutes: 1200 },
+    ]},
+    { id: 'lp003', title: 'Investasi Syariah Mastery', targetRole: 'Analis Investasi Senior', description: 'Jalur pengembangan analis investasi: dari case study sampai sertifikasi.', createdBy: 'p004', steps: [
+      { type: 'asset', refId: 'ka003', title: 'Pelajari: Case Study HDC Settlement', estMinutes: 60 },
+      { type: 'training', refId: null, title: 'Ikuti: Workshop Manajemen Risiko Syariah', estMinutes: 720 },
+      { type: 'training', refId: null, title: 'Sertifikasi: WMI', estMinutes: 2400 },
+    ]},
+  ],
+  enrollments: [
+    { id: 'en001', userId: 'p007', pathId: 'lp001', startedAt: '2025-04-01', completedSteps: [0, 1] },
+    { id: 'en002', userId: 'p008', pathId: 'lp002', startedAt: '2025-05-01', completedSteps: [0] },
+    { id: 'en003', userId: 'p011', pathId: 'lp003', startedAt: '2025-05-05', completedSteps: [] },
+  ],
+  questions: [
+    { id: 'q001', askerId: 'p007', title: 'Bagaimana cara memilih sampel audit yang representatif untuk audit syariah?', body: 'Saya sedang mempersiapkan audit syariah pertama saya dan bingung dengan teknik sampling yang tepat untuk transaksi syariah.', domain: 'Audit Internal', status: 'answered', askedAt: '2025-05-10', answers: [
+      { id: 'a001', smeId: 'p006', body: 'Untuk audit syariah, gunakan judgmental sampling pada transaksi material + random sampling pada populasi besar. Referensi: Pedoman Audit Berbasis Risiko v2.0 bab 4.', votes: 5, createdAt: '2025-05-11', promotedToAssetId: null },
+    ]},
+    { id: 'q002', askerId: 'p009', title: 'Dokumen apa saja yang wajib di-attach saat pengajuan sertifikasi external?', body: 'Untuk pegawai yang ingin ambil sertifikasi seperti CISA atau WMI, dokumen apa yang harus disiapkan?', domain: 'SDM', status: 'resolved', askedAt: '2025-04-28', answers: [
+      { id: 'a002', smeId: 'p005', body: 'CV terbaru, bukti pengalaman minimal 2 tahun di area terkait, surat rekomendasi atasan, dan brosur sertifikasi. Detail di SOP Pengajuan Pelatihan v3.1.', votes: 8, createdAt: '2025-04-29', promotedToAssetId: 'ka002' },
+    ]},
+    { id: 'q003', askerId: 'p010', title: 'Apakah ada template laporan risiko investasi haji bulanan?', body: 'Saya cari template laporan risiko investasi yang bisa langsung digunakan.', domain: 'Investasi Syariah', status: 'open', askedAt: '2025-05-17', answers: []},
   ],
   cop: [
     { id: 'cop001', nama: 'CoP Audit & GRC', lead: 'p002', anggota: 32, diskusiPerBulan: 48, engagement: 92, nextEvent: '2025-06-18' },
@@ -221,6 +327,30 @@ const formatDate = (s) => {
 const initials = (nama) => nama.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 const uid = (prefix) => `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const findPegawai = (data, id) => data.pegawai.find(p => p.id === id);
+const findAsset = (data, id) => data.knowledgeAsset.find(a => a.id === id);
+const isBookmarked = (data, userId, assetId) => (data.bookmarks || []).some(b => b.userId === userId && b.assetId === assetId);
+const userBookmarks = (data, userId) => (data.bookmarks || []).filter(b => b.userId === userId);
+
+const daysBetween = (a, b) => Math.round((new Date(a) - new Date(b)) / 86400000);
+const daysUntil = (d) => daysBetween(d, new Date().toISOString());
+const daysSince = (d) => daysBetween(new Date().toISOString(), d);
+
+// Cross-entity relationship lookup for a Knowledge Asset.
+// Heuristic: an asset relates to an SME / CoP if its tags or owner's division
+// overlaps with the SME domain / CoP name. Good enough for prototype-grade KG view.
+const assetRelations = (data, asset) => {
+  const owner = findPegawai(data, asset.owner);
+  const tagsLower = asset.tags.map(t => t.toLowerCase());
+  const matches = (text) => {
+    if (!text) return false;
+    const tl = text.toLowerCase();
+    return tagsLower.some(t => tl.includes(t)) || (owner && tl.includes(owner.divisi.toLowerCase()));
+  };
+  const smes = data.sme.filter(s => matches(s.domain));
+  const cops = data.cop.filter(c => matches(c.nama));
+  const paths = (data.learningPaths || []).filter(p => p.steps.some(st => st.refId === asset.id));
+  return { owner, smes, cops, paths };
+};
 
 // =================================================================================
 // UI PRIMITIVES
@@ -308,6 +438,57 @@ const Avatar = ({ nama, size = 'md', className = '' }) => {
     <div className={`${sizes[size]} rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-semibold flex-shrink-0 ${className}`}>
       {initials(nama)}
     </div>
+  );
+};
+
+const Tabs = ({ tabs, active, onChange }) => (
+  <div className="flex items-center gap-1 border-b border-slate-200 -mx-5 px-5">
+    {tabs.map(t => (
+      <button key={t.id} onClick={() => onChange(t.id)}
+        className={`px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors ${
+          active === t.id ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+        }`}>
+        {t.label}{typeof t.count === 'number' && <span className="ml-1 text-slate-400">({t.count})</span>}
+      </button>
+    ))}
+  </div>
+);
+
+const Rating = ({ up, down, onUp, onDown, compact = false }) => (
+  <div className={`inline-flex items-center gap-1 ${compact ? 'text-[11px]' : 'text-xs'}`}>
+    <button onClick={onUp} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-emerald-50 text-slate-600 hover:text-emerald-700">
+      <ThumbsUp className="w-3.5 h-3.5" />{up}
+    </button>
+    <button onClick={onDown} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-rose-50 text-slate-600 hover:text-rose-600">
+      <ThumbsDown className="w-3.5 h-3.5" />{down}
+    </button>
+  </div>
+);
+
+const BookmarkBtn = ({ active, onToggle }) => (
+  <button onClick={onToggle} title={active ? 'Hapus bookmark' : 'Bookmark'}
+    className={`p-1.5 rounded-md ${active ? 'text-amber-600 bg-amber-50' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'}`}>
+    <Bookmark className="w-4 h-4" fill={active ? 'currentColor' : 'none'} />
+  </button>
+);
+
+const ProgressBar = ({ value, color = 'emerald' }) => {
+  const colors = { emerald: 'bg-emerald-500', amber: 'bg-amber-500', rose: 'bg-rose-500', blue: 'bg-blue-500', violet: 'bg-violet-500' };
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+      <div className={`h-full rounded-full transition-all ${colors[color] || colors.emerald}`} style={{ width: `${pct}%` }} />
+    </div>
+  );
+};
+
+const StatusBadge = ({ status, map }) => {
+  const s = map[status] || { label: status, color: 'bg-slate-100 text-slate-600', icon: null };
+  const Icon = s.icon;
+  return (
+    <Badge className={s.color}>
+      {Icon && <Icon className="w-3 h-3" />}{s.label}
+    </Badge>
   );
 };
 
@@ -431,8 +612,175 @@ const Sidebar = ({ active, onChange, counts, collapsed, onToggle }) => (
   </aside>
 );
 
-const TopBar = ({ title, subtitle, search, setSearch, actions, onMenu }) => (
-  <header className="bg-white border-b border-slate-200 px-5 py-3 flex items-center gap-3 flex-shrink-0">
+const AppFooter = () => (
+  <footer className="border-t border-slate-200 bg-white px-5 py-4 mt-6">
+    <div className="max-w-6xl mx-auto space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-2 text-slate-600">
+          <div className="w-6 h-6 rounded-md bg-emerald-700 flex items-center justify-center">
+            <GraduationCap className="w-3.5 h-3.5 text-white" />
+          </div>
+          <span className="font-semibold text-slate-800">KMLS</span>
+          <span className="text-slate-400">·</span>
+          <span>BPKH Learning Suite</span>
+          <span className="text-slate-400">·</span>
+          <span className="text-slate-500">v{APP_VERSION}</span>
+        </div>
+        <div className="flex items-center gap-2 text-slate-600">
+          <span>Developed by</span>
+          <span className="font-semibold text-emerald-700">MS Hadianto</span>
+          <span className="text-slate-400">·</span>
+          <a href="https://github.com/mshadianto/klms" target="_blank" rel="noopener noreferrer"
+             className="text-slate-500 hover:text-emerald-700 inline-flex items-center gap-1">
+            <GitBranch className="w-3 h-3" />github.com/mshadianto/klms
+          </a>
+        </div>
+      </div>
+      <div className="text-[10.5px] text-slate-500 leading-relaxed bg-slate-50 border border-slate-200 rounded-md px-3 py-2">
+        <span className="font-semibold text-slate-700">Disclaimer:</span>{' '}
+        Aplikasi ini adalah <b>prototipe</b> Knowledge Management & Learning System untuk keperluan demo & evaluasi internal.
+        Seluruh data pegawai, pelatihan, dan dokumen yang ditampilkan bersifat <b>fiktif / dummy</b> dan tidak merepresentasikan
+        data riil Badan Pengelola Keuangan Haji (BPKH). Aplikasi belum melalui audit keamanan; jangan input data sensitif atau
+        rahasia jabatan ke instance demo ini. Persistensi menggunakan <i>localStorage</i> browser — data tidak tersinkronisasi
+        antar perangkat. © {new Date().getFullYear()} MS Hadianto. Disediakan apa adanya tanpa jaminan apapun.
+      </div>
+    </div>
+  </footer>
+);
+
+const GlobalSearch = ({ data, onNavigate }) => {
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+
+  const results = useMemo(() => {
+    if (!q || q.length < 2) return null;
+    const t = q.toLowerCase();
+    const match = (s) => (s || '').toLowerCase().includes(t);
+    const assets = data.knowledgeAsset.filter(a => match(a.judul) || match(a.description) || a.tags.some(x => match(x))).slice(0, 5);
+    const pegawai = data.pegawai.filter(p => match(p.nama) || match(p.jabatan) || match(p.divisi)).slice(0, 5);
+    const smes = data.sme.filter(s => match(s.domain) || s.sertifikasi.some(c => match(c))).map(s => ({ ...s, peg: findPegawai(data, s.pegawaiId) })).slice(0, 5);
+    const cops = data.cop.filter(c => match(c.nama)).slice(0, 5);
+    const paths = (data.learningPaths || []).filter(p => match(p.title) || match(p.targetRole) || match(p.description)).slice(0, 5);
+    const questions = (data.questions || []).filter(qq => match(qq.title) || match(qq.body) || match(qq.domain)).slice(0, 5);
+    const total = assets.length + pegawai.length + smes.length + cops.length + paths.length + questions.length;
+    return { assets, pegawai, smes, cops, paths, questions, total };
+  }, [q, data]);
+
+  const go = (view) => { setOpen(false); setQ(''); onNavigate(view); };
+
+  return (
+    <div ref={ref} className="hidden md:block relative w-72">
+      <div className="flex items-center gap-2 bg-slate-100 rounded-md px-3 py-1.5">
+        <Search className="w-4 h-4 text-slate-400" />
+        <input value={q} onChange={e => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
+          placeholder="Cari asset, SME, pegawai, CoP, path..."
+          className="bg-transparent border-none outline-none text-sm flex-1 min-w-0" />
+        {q && <button onClick={() => setQ('')} className="text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>}
+      </div>
+      {open && results && (
+        <div className="absolute right-0 top-full mt-1 w-[28rem] bg-white border border-slate-200 rounded-lg shadow-xl z-40 max-h-[70vh] overflow-y-auto">
+          {results.total === 0 ? (
+            <div className="p-6 text-center text-xs text-slate-500">Tidak ada hasil untuk "<b>{q}</b>"</div>
+          ) : (
+            <div className="p-2 space-y-3">
+              {results.assets.length > 0 && (
+                <div>
+                  <div className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1"><Database className="w-3 h-3" />Knowledge Asset</div>
+                  {results.assets.map(a => {
+                    const t = ASSET_TYPES[a.type];
+                    return (
+                      <button key={a.id} onClick={() => go('km-asset')} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-slate-50 flex items-center gap-2">
+                        <t.icon className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-medium text-slate-800 truncate">{a.judul}</div>
+                          <div className="text-[10px] text-slate-500">{t.label} · v{a.version || '1.0'}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {results.smes.length > 0 && (
+                <div>
+                  <div className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1"><Award className="w-3 h-3" />SME</div>
+                  {results.smes.map(s => (
+                    <button key={s.id} onClick={() => go('km-sme')} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-slate-50 flex items-center gap-2">
+                      <Avatar nama={s.peg?.nama || '??'} size="xs" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium text-slate-800 truncate">{s.peg?.nama || 'Unknown'}</div>
+                        <div className="text-[10px] text-slate-500 truncate">{s.domain}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {results.pegawai.length > 0 && (
+                <div>
+                  <div className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1"><Users className="w-3 h-3" />Pegawai</div>
+                  {results.pegawai.map(p => (
+                    <button key={p.id} onClick={() => go('pegawai')} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-slate-50 flex items-center gap-2">
+                      <Avatar nama={p.nama} size="xs" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium text-slate-800 truncate">{p.nama}</div>
+                        <div className="text-[10px] text-slate-500 truncate">{p.jabatan} · {p.divisi}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {results.cops.length > 0 && (
+                <div>
+                  <div className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1"><Network className="w-3 h-3" />Community of Practice</div>
+                  {results.cops.map(c => (
+                    <button key={c.id} onClick={() => go('km-cop')} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-slate-50">
+                      <div className="text-xs font-medium text-slate-800">{c.nama}</div>
+                      <div className="text-[10px] text-slate-500">{c.anggota} anggota · {c.engagement}% engagement</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {results.paths.length > 0 && (
+                <div>
+                  <div className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1"><Route className="w-3 h-3" />Learning Path</div>
+                  {results.paths.map(p => (
+                    <button key={p.id} onClick={() => go('km-paths')} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-slate-50">
+                      <div className="text-xs font-medium text-slate-800 truncate">{p.title}</div>
+                      <div className="text-[10px] text-slate-500">{p.targetRole} · {p.steps.length} step</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {results.questions.length > 0 && (
+                <div>
+                  <div className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1"><HelpCircle className="w-3 h-3" />Pertanyaan</div>
+                  {results.questions.map(qq => (
+                    <button key={qq.id} onClick={() => go('km-qa')} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-slate-50">
+                      <div className="text-xs font-medium text-slate-800 truncate">{qq.title}</div>
+                      <div className="text-[10px] text-slate-500">{qq.domain} · {QUESTION_STATUS[qq.status]?.label}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <div className="px-3 py-2 border-t border-slate-100 text-[10px] text-slate-400 bg-slate-50/50">
+            Tekan <kbd className="px-1 bg-white border border-slate-200 rounded">Esc</kbd> untuk tutup · {results.total} hasil
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TopBar = ({ title, subtitle, data, onNavigate, actions, onMenu }) => (
+  <header className="bg-white border-b border-slate-200 px-5 py-3 flex items-center gap-3 flex-shrink-0 relative z-30">
     <button onClick={onMenu} className="md:hidden p-1.5 hover:bg-slate-100 rounded-md">
       <Menu className="w-5 h-5 text-slate-600" />
     </button>
@@ -440,13 +788,7 @@ const TopBar = ({ title, subtitle, search, setSearch, actions, onMenu }) => (
       <h1 className="text-base font-semibold text-slate-800 truncate">{title}</h1>
       {subtitle && <p className="text-xs text-slate-500 truncate">{subtitle}</p>}
     </div>
-    {setSearch && (
-      <div className="hidden md:flex items-center gap-2 bg-slate-100 rounded-md px-3 py-1.5 w-64">
-        <Search className="w-4 h-4 text-slate-400" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari..."
-          className="bg-transparent border-none outline-none text-sm flex-1 min-w-0" />
-      </div>
-    )}
+    {data && onNavigate && <GlobalSearch data={data} onNavigate={onNavigate} />}
     {actions && <div className="flex gap-2 items-center">{actions}</div>}
   </header>
 );
@@ -654,6 +996,35 @@ const PengajuanModule = ({ data, onUpdate, showToast }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [viewing, setViewing] = useState(null);
+  const [harvestFor, setHarvestFor] = useState(null);
+  const [harvestForm, setHarvestForm] = useState({ summary: '', recommendation: '', keyTakeaways: '' });
+
+  const isHarvested = (pengajuanId) => data.knowledgeAsset.some(a => a.harvestedFrom === pengajuanId);
+
+  const submitHarvest = () => {
+    if (!harvestFor) return;
+    if (!harvestForm.summary.trim()) { showToast('Ringkasan lessons learned wajib diisi', 'error'); return; }
+    const peg = findPegawai(data, harvestFor.pegawaiId);
+    const now = new Date();
+    const review = new Date(now); review.setMonth(review.getMonth() + 12);
+    const newAsset = {
+      id: uid('ka'),
+      judul: `Lessons Learned: ${harvestFor.judul}`,
+      type: 'lesson',
+      tags: [harvestFor.jenis, peg?.divisi || 'Umum'].filter(Boolean),
+      owner: harvestFor.pegawaiId,
+      description: `**Pelatihan:** ${harvestFor.judul} (${harvestFor.penyelenggara || '-'})\n**Peserta:** ${peg?.nama || '-'}\n\n**Ringkasan:**\n${harvestForm.summary}\n\n**Key Takeaways:**\n${harvestForm.keyTakeaways}\n\n**Rekomendasi:**\n${harvestForm.recommendation}`,
+      status: 'published', version: '1.0',
+      reviewDate: review.toISOString().split('T')[0],
+      ratingsUp: 0, ratingsDown: 0, comments: [], views: 0,
+      lastViewedAt: now.toISOString(), createdAt: now.toISOString(),
+      harvestedFrom: harvestFor.id,
+    };
+    onUpdate({ ...data, knowledgeAsset: [newAsset, ...data.knowledgeAsset] });
+    showToast('Lessons learned berhasil dipublish ke Knowledge Asset');
+    setHarvestFor(null);
+    setHarvestForm({ summary: '', recommendation: '', keyTakeaways: '' });
+  };
 
   const filtered = useMemo(() => {
     return data.pengajuan
@@ -830,9 +1201,58 @@ const PengajuanModule = ({ data, onUpdate, showToast }) => {
                   )}
                 </div>
               </div>
+
+              {viewing.status === 'completed' && (
+                <div className="pt-3 border-t border-slate-100">
+                  {isHarvested(viewing.id) ? (
+                    <div className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-md text-xs text-emerald-800">
+                      <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                      Lessons learned dari pelatihan ini sudah di-harvest menjadi Knowledge Asset.
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-md">
+                      <Lightbulb className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="text-xs font-medium text-amber-900">Harvest Lessons Learned</div>
+                        <div className="text-[11px] text-amber-700 mb-2">Tangkap insight dari pelatihan ini supaya bisa dipakai pegawai lain. Hasilnya jadi Knowledge Asset.</div>
+                        <Button size="sm" variant="primary" icon={Lightbulb} onClick={() => { setHarvestFor(viewing); setViewing(null); }}>Mulai Harvest</Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })()}
+      </Modal>
+
+      <Modal open={!!harvestFor} onClose={() => setHarvestFor(null)} title="Harvest Lessons Learned" size="lg">
+        {harvestFor && (
+          <div className="p-5 space-y-3">
+            <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-md">
+              <b>Pelatihan:</b> {harvestFor.judul}<br />
+              <b>Peserta:</b> {findPegawai(data, harvestFor.pegawaiId)?.nama}<br />
+              <b>Penyelenggara:</b> {harvestFor.penyelenggara || '-'}
+            </div>
+            <Textarea label="Ringkasan Pelatihan *" value={harvestForm.summary}
+              onChange={e => setHarvestForm({ ...harvestForm, summary: e.target.value })}
+              placeholder="Apa yang dipelajari, apa yang menarik, materi apa yang paling penting..." />
+            <Textarea label="Key Takeaways (3-5 poin kunci)" value={harvestForm.keyTakeaways}
+              onChange={e => setHarvestForm({ ...harvestForm, keyTakeaways: e.target.value })}
+              placeholder="• Poin penting 1&#10;• Poin penting 2&#10;• ..." />
+            <Textarea label="Rekomendasi untuk BPKH" value={harvestForm.recommendation}
+              onChange={e => setHarvestForm({ ...harvestForm, recommendation: e.target.value })}
+              placeholder="Bagaimana ini bisa diterapkan di BPKH? Siapa yang perlu tahu? Quick-win apa?" />
+            <div className="text-[11px] text-slate-600 bg-blue-50 p-2 rounded-md flex items-start gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <span>Hasil harvest akan otomatis dipublish sebagai Knowledge Asset (tipe: Lesson Learned), tagged dengan jenis pelatihan & divisi peserta.</span>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => setHarvestFor(null)}>Batal</Button>
+              <Button variant="primary" icon={Save} onClick={submitHarvest}>Publish Lessons Learned</Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
@@ -1188,31 +1608,216 @@ const CoPModule = ({ data }) => {
 // MODULE: KNOWLEDGE ASSET
 // =================================================================================
 
-const KnowledgeAssetModule = ({ data, onUpdate, showToast }) => {
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [search, setSearch] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ judul: '', type: 'sop', tags: '', owner: '' });
+const AssetDetailModal = ({ data, asset, onUpdate, onClose, showToast, onNavigate }) => {
+  const [commentText, setCommentText] = useState('');
+  if (!asset) return null;
+  const t = ASSET_TYPES[asset.type];
+  const Icon = t.icon;
+  const owner = findPegawai(data, asset.owner);
+  const rels = assetRelations(data, asset);
+  const bookmarked = isBookmarked(data, CURRENT_USER_ID, asset.id);
+  const reviewIn = asset.reviewDate ? daysUntil(asset.reviewDate) : null;
+  const ageDays = daysSince(asset.lastViewedAt || asset.createdAt);
 
-  const filtered = useMemo(() =>
-    data.knowledgeAsset
-      .filter(a => typeFilter === 'all' || a.type === typeFilter)
-      .filter(a => !search || a.judul.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => b.views - a.views)
-  , [data.knowledgeAsset, typeFilter, search]);
+  const updateAsset = (patch) => onUpdate({
+    ...data,
+    knowledgeAsset: data.knowledgeAsset.map(a => a.id === asset.id ? { ...a, ...patch } : a),
+  });
+
+  const handleRate = (dir) => updateAsset(dir === 'up'
+    ? { ratingsUp: (asset.ratingsUp || 0) + 1 }
+    : { ratingsDown: (asset.ratingsDown || 0) + 1 });
+
+  const handleBookmark = () => {
+    const list = data.bookmarks || [];
+    onUpdate({
+      ...data,
+      bookmarks: bookmarked
+        ? list.filter(b => !(b.userId === CURRENT_USER_ID && b.assetId === asset.id))
+        : [...list, { id: uid('bm'), userId: CURRENT_USER_ID, assetId: asset.id, createdAt: new Date().toISOString() }],
+    });
+    showToast(bookmarked ? 'Bookmark dihapus' : 'Asset di-bookmark', 'info');
+  };
+
+  const handleComment = () => {
+    if (!commentText.trim()) return;
+    updateAsset({ comments: [...(asset.comments || []), { id: uid('c'), userId: CURRENT_USER_ID, text: commentText, createdAt: new Date().toISOString() }] });
+    setCommentText('');
+    showToast('Komentar ditambahkan');
+  };
+
+  const handleStatusChange = (status) => {
+    updateAsset({ status });
+    showToast(`Status: ${ASSET_STATUS[status].label}`);
+  };
+
+  return (
+    <Modal open={!!asset} onClose={onClose} title="Detail Knowledge Asset" size="xl">
+      <div className="p-5 space-y-4">
+        <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
+          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${t.color}`}>
+            <Icon className="w-6 h-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-2 flex-wrap">
+              <h3 className="text-base font-semibold text-slate-800 flex-1 min-w-0">{asset.judul}</h3>
+              <StatusBadge status={asset.status || 'published'} map={ASSET_STATUS} />
+            </div>
+            <div className="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
+              <span>{t.label}</span>
+              <span>·</span>
+              <span>v{asset.version || '1.0'}</span>
+              <span>·</span>
+              <span>Owner: {owner?.nama || 'Unknown'}</span>
+              <span>·</span>
+              <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{asset.views} views</span>
+            </div>
+          </div>
+          <BookmarkBtn active={bookmarked} onToggle={handleBookmark} />
+        </div>
+
+        {reviewIn !== null && reviewIn <= 60 && (
+          <div className={`flex items-start gap-2 p-2.5 rounded-md text-xs ${reviewIn < 0 ? 'bg-rose-50 text-rose-800' : 'bg-amber-50 text-amber-800'}`}>
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <div>
+              {reviewIn < 0
+                ? <><span className="font-medium">Review terlewat {Math.abs(reviewIn)} hari yang lalu.</span> Asset mungkin sudah tidak relevan — minta owner untuk update atau archive.</>
+                : <><span className="font-medium">Review jatuh tempo dalam {reviewIn} hari.</span> Pastikan konten masih akurat.</>}
+            </div>
+          </div>
+        )}
+
+        {asset.description && <p className="text-sm text-slate-700 leading-relaxed">{asset.description}</p>}
+
+        <div className="flex flex-wrap gap-1">
+          {asset.tags.map(tag => <Badge key={tag} className="bg-slate-100 text-slate-700"><Tag className="w-3 h-3" />{tag}</Badge>)}
+        </div>
+
+        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+          <Rating up={asset.ratingsUp || 0} down={asset.ratingsDown || 0} onUp={() => handleRate('up')} onDown={() => handleRate('down')} />
+          <div className="flex items-center gap-1">
+            {asset.status !== 'published' && (
+              <Button size="sm" variant="primary" icon={CheckCircle} onClick={() => handleStatusChange('published')}>Publish</Button>
+            )}
+            {asset.status === 'published' && (
+              <Button size="sm" icon={Archive} onClick={() => handleStatusChange('archived')}>Archive</Button>
+            )}
+            {asset.status === 'draft' && (
+              <Button size="sm" icon={Clock} onClick={() => handleStatusChange('review')}>Kirim ke Review</Button>
+            )}
+          </div>
+        </div>
+
+        <div className="pt-3 border-t border-slate-100">
+          <div className="text-xs font-medium text-slate-600 mb-2 flex items-center gap-1.5"><Link2 className="w-3.5 h-3.5" />Relasi Knowledge Graph</div>
+          <div className="grid sm:grid-cols-3 gap-2 text-xs">
+            <div className="p-2.5 bg-violet-50 rounded-md">
+              <div className="text-[10px] font-medium text-violet-700 uppercase tracking-wide mb-1">SME terkait ({rels.smes.length})</div>
+              {rels.smes.length === 0 ? <div className="text-slate-500 italic">Tidak ada</div> : rels.smes.slice(0,3).map(s => {
+                const p = findPegawai(data, s.pegawaiId);
+                return <div key={s.id} className="truncate text-violet-900">· {p?.nama}</div>;
+              })}
+            </div>
+            <div className="p-2.5 bg-blue-50 rounded-md">
+              <div className="text-[10px] font-medium text-blue-700 uppercase tracking-wide mb-1">CoP terkait ({rels.cops.length})</div>
+              {rels.cops.length === 0 ? <div className="text-slate-500 italic">Tidak ada</div> : rels.cops.slice(0,3).map(c =>
+                <div key={c.id} className="truncate text-blue-900">· {c.nama}</div>
+              )}
+            </div>
+            <div className="p-2.5 bg-emerald-50 rounded-md">
+              <div className="text-[10px] font-medium text-emerald-700 uppercase tracking-wide mb-1">Learning Path ({rels.paths.length})</div>
+              {rels.paths.length === 0 ? <div className="text-slate-500 italic">Belum dipakai</div> : rels.paths.slice(0,3).map(p =>
+                <button key={p.id} onClick={() => { onClose(); onNavigate('km-paths'); }} className="block truncate text-emerald-900 hover:underline text-left">· {p.title}</button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-3 border-t border-slate-100">
+          <div className="text-xs font-medium text-slate-600 mb-2 flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5" />Diskusi ({(asset.comments || []).length})</div>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {(asset.comments || []).length === 0 && <div className="text-xs text-slate-500 italic">Belum ada komentar.</div>}
+            {(asset.comments || []).map(c => {
+              const u = findPegawai(data, c.userId);
+              return (
+                <div key={c.id} className="flex gap-2">
+                  <Avatar nama={u?.nama || '??'} size="xs" />
+                  <div className="flex-1 bg-slate-50 rounded-md px-3 py-2">
+                    <div className="text-[11px] font-medium text-slate-700">{u?.nama || 'Unknown'} <span className="text-slate-400 font-normal">· {formatDate(c.createdAt)}</span></div>
+                    <div className="text-xs text-slate-700 mt-0.5">{c.text}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-2 flex gap-2">
+            <input value={commentText} onChange={e => setCommentText(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleComment()}
+              placeholder="Tulis komentar atau pertanyaan..."
+              className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500" />
+            <Button variant="primary" icon={SendIcon} onClick={handleComment}>Kirim</Button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+const KnowledgeAssetModule = ({ data, onUpdate, showToast, onNavigate }) => {
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('views');
+  const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState({ judul: '', type: 'sop', tags: '', owner: '', description: '', reviewMonths: 12 });
+  const [viewing, setViewing] = useState(null);
+
+  const myBookmarks = useMemo(() => new Set(userBookmarks(data, CURRENT_USER_ID).map(b => b.assetId)), [data]);
+
+  const filtered = useMemo(() => {
+    let list = data.knowledgeAsset.slice();
+    if (typeFilter !== 'all') list = list.filter(a => a.type === typeFilter);
+    if (statusFilter !== 'all') list = list.filter(a => (a.status || 'published') === statusFilter);
+    if (showBookmarksOnly) list = list.filter(a => myBookmarks.has(a.id));
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(a => a.judul.toLowerCase().includes(q) || (a.description || '').toLowerCase().includes(q) || a.tags.some(t => t.toLowerCase().includes(q)));
+    }
+    const sorters = {
+      views: (a, b) => b.views - a.views,
+      newest: (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+      rating: (a, b) => ((b.ratingsUp || 0) - (b.ratingsDown || 0)) - ((a.ratingsUp || 0) - (a.ratingsDown || 0)),
+      review: (a, b) => new Date(a.reviewDate || '2099-01-01') - new Date(b.reviewDate || '2099-01-01'),
+    };
+    return list.sort(sorters[sort] || sorters.views);
+  }, [data.knowledgeAsset, typeFilter, statusFilter, showBookmarksOnly, search, sort, myBookmarks]);
 
   const handleSave = () => {
     if (!form.judul.trim()) { showToast('Judul wajib diisi', 'error'); return; }
+    const now = new Date();
+    const review = new Date(now); review.setMonth(review.getMonth() + (parseInt(form.reviewMonths) || 12));
     const newAsset = {
       id: uid('ka'), judul: form.judul, type: form.type,
       tags: form.tags.split(',').map(s => s.trim()).filter(Boolean),
-      owner: form.owner || data.pegawai[0].id, views: 0,
-      createdAt: new Date().toISOString(),
+      owner: form.owner || CURRENT_USER_ID, views: 0,
+      description: form.description, status: 'draft', version: '1.0',
+      reviewDate: review.toISOString().split('T')[0],
+      ratingsUp: 0, ratingsDown: 0, comments: [], lastViewedAt: now.toISOString(),
+      createdAt: now.toISOString(),
     };
     onUpdate({ ...data, knowledgeAsset: [newAsset, ...data.knowledgeAsset] });
-    showToast('Knowledge asset ditambahkan');
+    showToast('Knowledge asset ditambahkan (draft)');
     setModalOpen(false);
-    setForm({ judul: '', type: 'sop', tags: '', owner: '' });
+    setForm({ judul: '', type: 'sop', tags: '', owner: '', description: '', reviewMonths: 12 });
+  };
+
+  const handleOpenAsset = (asset) => {
+    onUpdate({
+      ...data,
+      knowledgeAsset: data.knowledgeAsset.map(a => a.id === asset.id ? { ...a, views: (a.views || 0) + 1, lastViewedAt: new Date().toISOString() } : a),
+    });
+    setViewing(asset);
   };
 
   return (
@@ -1220,9 +1825,14 @@ const KnowledgeAssetModule = ({ data, onUpdate, showToast }) => {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-base font-semibold text-slate-800">Knowledge Asset</h2>
-          <p className="text-xs text-slate-500">Repositori dokumen, video & best practices</p>
+          <p className="text-xs text-slate-500">Repositori dengan lifecycle, ratings, bookmarks & knowledge graph</p>
         </div>
-        <Button variant="primary" icon={Plus} onClick={() => setModalOpen(true)}>Tambah Asset</Button>
+        <div className="flex gap-2">
+          <Button icon={Bookmark} variant={showBookmarksOnly ? 'primary' : 'default'} onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}>
+            Bookmark Saya ({myBookmarks.size})
+          </Button>
+          <Button variant="primary" icon={Plus} onClick={() => setModalOpen(true)}>Tambah Asset</Button>
+        </div>
       </div>
 
       <Card padding="p-3">
@@ -1243,39 +1853,68 @@ const KnowledgeAssetModule = ({ data, onUpdate, showToast }) => {
               </button>
             );
           })}
-          <div className="flex items-center gap-2 bg-slate-100 rounded-md px-3 py-1.5 ml-auto">
+        </div>
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          <Select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            options={[{ value: 'all', label: 'Semua status' }, ...Object.entries(ASSET_STATUS).map(([v, s]) => ({ value: v, label: s.label }))]} />
+          <Select value={sort} onChange={e => setSort(e.target.value)}
+            options={[
+              { value: 'views', label: 'Sort: Paling Banyak Dilihat' },
+              { value: 'newest', label: 'Sort: Terbaru' },
+              { value: 'rating', label: 'Sort: Rating Tertinggi' },
+              { value: 'review', label: 'Sort: Review Terdekat' },
+            ]} />
+          <div className="flex items-center gap-2 bg-slate-100 rounded-md px-3 py-1.5 flex-1 min-w-0 max-w-xs ml-auto">
             <Search className="w-3.5 h-3.5 text-slate-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari judul..."
-              className="bg-transparent outline-none text-xs w-32" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari judul/deskripsi/tag..."
+              className="bg-transparent outline-none text-xs w-full" />
           </div>
         </div>
       </Card>
 
       {filtered.length === 0 ? (
-        <Card><EmptyState icon={Database} title="Belum ada asset" description="Mulai dengan menambahkan dokumen, video, atau template." /></Card>
+        <Card><EmptyState icon={Database} title="Tidak ada asset" description={showBookmarksOnly ? 'Anda belum bookmark asset apapun.' : 'Coba ubah filter atau tambah asset baru.'} /></Card>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map(a => {
             const t = ASSET_TYPES[a.type];
             const Icon = t.icon;
             const owner = findPegawai(data, a.owner);
+            const score = (a.ratingsUp || 0) - (a.ratingsDown || 0);
+            const reviewIn = a.reviewDate ? daysUntil(a.reviewDate) : null;
+            const overdue = reviewIn !== null && reviewIn < 0;
+            const due = reviewIn !== null && reviewIn >= 0 && reviewIn <= 30;
             return (
-              <Card key={a.id} className="hover:shadow-sm transition-shadow cursor-pointer">
-                <div className="flex items-start gap-3 mb-2">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${t.color}`}>
-                    <Icon className="w-5 h-5" />
+              <Card key={a.id} className="hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer relative" >
+                <button onClick={() => handleOpenAsset(a)} className="absolute inset-0 w-full h-full" aria-label="Buka detail" />
+                <div className="relative pointer-events-none">
+                  <div className="flex items-start gap-3 mb-2">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${t.color}`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm text-slate-800 line-clamp-2">{a.judul}</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1.5">
+                        <span>{t.label}</span><span>·</span><span>v{a.version || '1.0'}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm text-slate-800 line-clamp-2">{a.judul}</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">{t.label}</div>
+                  <div className="flex items-center gap-1 mb-2 flex-wrap">
+                    <StatusBadge status={a.status || 'published'} map={ASSET_STATUS} />
+                    {overdue && <Badge className="bg-rose-100 text-rose-700"><AlertTriangle className="w-3 h-3" />Review terlewat</Badge>}
+                    {due && !overdue && <Badge className="bg-amber-100 text-amber-700"><Clock className="w-3 h-3" />Review {reviewIn}h</Badge>}
                   </div>
-                </div>
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {a.tags.map(tag => <Badge key={tag} className="bg-slate-100 text-slate-700 text-[10px]">{tag}</Badge>)}
-                </div>
-                <div className="flex items-center justify-between text-[10px] text-slate-500 pt-2 border-t border-slate-100">
-                  <span className="truncate">{owner?.nama || 'Unknown'}</span>
-                  <span className="flex items-center gap-1 flex-shrink-0"><Eye className="w-3 h-3" />{a.views}</span>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {a.tags.slice(0,4).map(tag => <Badge key={tag} className="bg-slate-100 text-slate-700 text-[10px]">{tag}</Badge>)}
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 pt-2 border-t border-slate-100">
+                    <span className="truncate">{owner?.nama || 'Unknown'}</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{a.views}</span>
+                      <span className="flex items-center gap-1"><ThumbsUp className="w-3 h-3" />{score >= 0 ? '+' : ''}{score}</span>
+                      {myBookmarks.has(a.id) && <Bookmark className="w-3 h-3 text-amber-500" fill="currentColor" />}
+                    </div>
+                  </div>
                 </div>
               </Card>
             );
@@ -1287,18 +1926,28 @@ const KnowledgeAssetModule = ({ data, onUpdate, showToast }) => {
         <div className="p-5 space-y-3">
           <Input label="Judul Asset *" value={form.judul} onChange={e => setForm({ ...form, judul: e.target.value })}
             placeholder="contoh: SOP Pengelolaan Risiko v2.0" />
-          <Select label="Tipe Asset" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
-            options={Object.entries(ASSET_TYPES).map(([v, t]) => ({ value: v, label: t.label }))} />
+          <Textarea label="Deskripsi singkat" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
+            placeholder="Jelaskan isi & manfaat asset ini..." />
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Tipe Asset" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
+              options={Object.entries(ASSET_TYPES).map(([v, t]) => ({ value: v, label: t.label }))} />
+            <Select label="Owner" value={form.owner} onChange={e => setForm({ ...form, owner: e.target.value })}
+              options={[{ value: '', label: '(saya sendiri)' }, ...data.pegawai.map(p => ({ value: p.id, label: p.nama }))]} />
+          </div>
           <Input label="Tags (pisahkan dengan koma)" value={form.tags}
             onChange={e => setForm({ ...form, tags: e.target.value })} placeholder="Audit, Risk, SOP" />
-          <Select label="Owner" value={form.owner} onChange={e => setForm({ ...form, owner: e.target.value })}
-            options={data.pegawai.map(p => ({ value: p.id, label: p.nama }))} />
+          <Select label="Review berikutnya" value={form.reviewMonths} onChange={e => setForm({ ...form, reviewMonths: e.target.value })}
+            options={[{ value: 6, label: '6 bulan' }, { value: 12, label: '12 bulan' }, { value: 24, label: '24 bulan' }]} />
+          <div className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded">Asset baru otomatis berstatus <b>Draft</b>. Publish setelah review owner.</div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => setModalOpen(false)}>Batal</Button>
             <Button variant="primary" icon={Save} onClick={handleSave}>Simpan</Button>
           </div>
         </div>
       </Modal>
+
+      <AssetDetailModal data={data} asset={viewing} onUpdate={onUpdate} showToast={showToast}
+        onNavigate={onNavigate} onClose={() => setViewing(null)} />
     </div>
   );
 };
@@ -1919,6 +2568,776 @@ const SettingsModule = ({ data, onReset, showToast }) => {
 };
 
 // =================================================================================
+// MODULE: LEARNING PATHS
+// =================================================================================
+
+const LearningPathsModule = ({ data, onUpdate, showToast }) => {
+  const [viewing, setViewing] = useState(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [form, setForm] = useState({ title: '', targetRole: '', description: '' });
+
+  const enrollments = data.enrollments || [];
+  const myEnrollment = (pathId) => enrollments.find(e => e.userId === CURRENT_USER_ID && e.pathId === pathId);
+  const enrolleesOf = (pathId) => enrollments.filter(e => e.pathId === pathId);
+
+  const enroll = (pathId) => {
+    if (myEnrollment(pathId)) return;
+    onUpdate({ ...data, enrollments: [...enrollments, { id: uid('en'), userId: CURRENT_USER_ID, pathId, startedAt: new Date().toISOString(), completedSteps: [] }] });
+    showToast('Berhasil enroll ke learning path');
+  };
+  const unenroll = (pathId) => {
+    onUpdate({ ...data, enrollments: enrollments.filter(e => !(e.userId === CURRENT_USER_ID && e.pathId === pathId)) });
+    showToast('Enrollment dibatalkan', 'info');
+  };
+  const toggleStep = (pathId, stepIdx) => {
+    const enr = myEnrollment(pathId);
+    if (!enr) return;
+    const completed = enr.completedSteps.includes(stepIdx)
+      ? enr.completedSteps.filter(i => i !== stepIdx)
+      : [...enr.completedSteps, stepIdx];
+    onUpdate({ ...data, enrollments: enrollments.map(e => e.id === enr.id ? { ...e, completedSteps: completed } : e) });
+  };
+
+  const createPath = () => {
+    if (!form.title.trim()) { showToast('Judul wajib diisi', 'error'); return; }
+    const newPath = {
+      id: uid('lp'), title: form.title, targetRole: form.targetRole, description: form.description,
+      createdBy: CURRENT_USER_ID, steps: [],
+    };
+    onUpdate({ ...data, learningPaths: [...(data.learningPaths || []), newPath] });
+    showToast('Learning path dibuat — tambahkan step di detail');
+    setCreateOpen(false);
+    setForm({ title: '', targetRole: '', description: '' });
+  };
+
+  return (
+    <div className="p-5 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="text-base font-semibold text-slate-800">Learning Paths</h2>
+          <p className="text-xs text-slate-500">Kurikulum terstruktur: asset + training + sertifikasi untuk setiap role</p>
+        </div>
+        <Button variant="primary" icon={Plus} onClick={() => setCreateOpen(true)}>Buat Path Baru</Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {(data.learningPaths || []).map(p => {
+          const enr = myEnrollment(p.id);
+          const progress = enr ? Math.round((enr.completedSteps.length / Math.max(p.steps.length, 1)) * 100) : 0;
+          const totalMin = p.steps.reduce((s, st) => s + (st.estMinutes || 0), 0);
+          return (
+            <Card key={p.id} className="hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer relative">
+              <button onClick={() => setViewing(p)} className="absolute inset-0 w-full h-full" aria-label="Buka detail" />
+              <div className="relative pointer-events-none">
+                <div className="flex items-start gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                    <Route className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm text-slate-800">{p.title}</div>
+                    <div className="text-[11px] text-slate-500">Target: {p.targetRole || 'Umum'}</div>
+                  </div>
+                  {enr && <Badge className="bg-emerald-100 text-emerald-700"><CheckCircle className="w-3 h-3" />Enrolled</Badge>}
+                </div>
+                {p.description && <p className="text-xs text-slate-600 mb-2 line-clamp-2">{p.description}</p>}
+                <div className="text-[11px] text-slate-500 mb-2">
+                  {p.steps.length} step · ~{Math.round(totalMin / 60)}h estimasi · {enrolleesOf(p.id).length} enrollee
+                </div>
+                {enr && (
+                  <>
+                    <div className="flex justify-between text-[10px] mb-1">
+                      <span className="text-slate-600">Progress Saya</span>
+                      <span className="font-medium text-emerald-700">{progress}%</span>
+                    </div>
+                    <ProgressBar value={progress} />
+                  </>
+                )}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      <Modal open={!!viewing} onClose={() => setViewing(null)} title="Detail Learning Path" size="xl">
+        {viewing && (() => {
+          const enr = myEnrollment(viewing.id);
+          const enrolled = !!enr;
+          const progress = enr ? Math.round((enr.completedSteps.length / Math.max(viewing.steps.length, 1)) * 100) : 0;
+          const creator = findPegawai(data, viewing.createdBy);
+          return (
+            <div className="p-5 space-y-4">
+              <div>
+                <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
+                  <div className="w-12 h-12 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                    <Route className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-semibold text-slate-800">{viewing.title}</h3>
+                    <div className="text-xs text-slate-500">Target role: <b>{viewing.targetRole}</b> · dibuat oleh {creator?.nama || 'system'}</div>
+                  </div>
+                  {enrolled
+                    ? <Button icon={XCircle} onClick={() => unenroll(viewing.id)}>Batalkan Enrollment</Button>
+                    : <Button variant="primary" icon={GraduationCap} onClick={() => enroll(viewing.id)}>Enroll Saya</Button>}
+                </div>
+                {viewing.description && <p className="text-sm text-slate-700 mt-3">{viewing.description}</p>}
+              </div>
+
+              {enrolled && (
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-slate-600">Progress Saya</span>
+                    <span className="font-medium text-emerald-700">{enr.completedSteps.length} / {viewing.steps.length} · {progress}%</span>
+                  </div>
+                  <ProgressBar value={progress} />
+                </div>
+              )}
+
+              <div>
+                <div className="text-xs font-medium text-slate-600 mb-2">Langkah ({viewing.steps.length})</div>
+                <div className="space-y-2">
+                  {viewing.steps.map((st, idx) => {
+                    const done = enr?.completedSteps.includes(idx);
+                    const asset = st.type === 'asset' ? findAsset(data, st.refId) : null;
+                    return (
+                      <div key={idx} className={`flex items-start gap-3 p-3 rounded-lg border ${done ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                        <button onClick={() => enrolled && toggleStep(viewing.id, idx)} disabled={!enrolled}
+                          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                            done ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-300 hover:border-emerald-500'
+                          } ${enrolled ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
+                          {done && <CheckCircle className="w-4 h-4" />}
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-medium text-slate-800">Step {idx + 1}: {st.title}</span>
+                            <Badge className={st.type === 'asset' ? 'bg-violet-100 text-violet-700' : 'bg-amber-100 text-amber-700'}>
+                              {st.type === 'asset' ? 'Asset' : 'Training'}
+                            </Badge>
+                          </div>
+                          {asset && <div className="text-[11px] text-slate-500 mt-0.5">→ {asset.judul} (v{asset.version})</div>}
+                          {st.estMinutes && <div className="text-[10px] text-slate-400 mt-0.5">Estimasi ~{st.estMinutes} menit</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {viewing.steps.length === 0 && <div className="text-xs text-slate-500 italic">Belum ada step.</div>}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100">
+                <div className="text-xs font-medium text-slate-600 mb-2">Enrollee ({enrolleesOf(viewing.id).length})</div>
+                <div className="flex flex-wrap gap-1">
+                  {enrolleesOf(viewing.id).map(e => {
+                    const p = findPegawai(data, e.userId);
+                    const prog = Math.round((e.completedSteps.length / Math.max(viewing.steps.length, 1)) * 100);
+                    return (
+                      <Badge key={e.id} className="bg-slate-100 text-slate-700">
+                        {p?.nama || 'Unknown'} · {prog}%
+                      </Badge>
+                    );
+                  })}
+                  {enrolleesOf(viewing.id).length === 0 && <div className="text-xs text-slate-500 italic">Belum ada yang enroll.</div>}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Buat Learning Path Baru">
+        <div className="p-5 space-y-3">
+          <Input label="Judul Path *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
+            placeholder="contoh: Onboarding Compliance Officer" />
+          <Input label="Target Role" value={form.targetRole} onChange={e => setForm({ ...form, targetRole: e.target.value })}
+            placeholder="contoh: Compliance Officer" />
+          <Textarea label="Deskripsi" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
+            placeholder="Tujuan path & expected outcome..." />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>Batal</Button>
+            <Button variant="primary" icon={Save} onClick={createPath}>Buat Path</Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// =================================================================================
+// MODULE: SKILL MATRIX (Competency × Pegawai)
+// =================================================================================
+
+const SkillMatrixModule = ({ data }) => {
+  const [tab, setTab] = useState('matrix');
+  const [divFilter, setDivFilter] = useState('all');
+
+  const competencies = data.competencies || [];
+  const pegawai = useMemo(() =>
+    data.pegawai.filter(p => divFilter === 'all' || p.divisi === divFilter)
+  , [data, divFilter]);
+
+  const levelOf = (pegId, cmpId) => {
+    const r = (data.pegawaiCompetencies || []).find(x => x.pegawaiId === pegId && x.competencyId === cmpId);
+    return r ? r.level : 0;
+  };
+
+  const requirementsFor = (jabatan) => {
+    const r = (data.roleRequirements || []).find(x => x.jabatan === jabatan);
+    return r ? r.requirements : [];
+  };
+
+  const gapsFor = (peg) => {
+    const reqs = requirementsFor(peg.jabatan);
+    return reqs.map(([cmpId, target]) => {
+      const current = levelOf(peg.id, cmpId);
+      const cmp = competencies.find(c => c.id === cmpId);
+      return { cmp, current, target, gap: target - current };
+    }).filter(g => g.gap > 0);
+  };
+
+  const allGaps = useMemo(() => pegawai.map(p => ({ peg: p, gaps: gapsFor(p) })).filter(x => x.gaps.length > 0), [pegawai, data]);
+  const totalGaps = allGaps.reduce((s, x) => s + x.gaps.length, 0);
+  const totalReq = useMemo(() => pegawai.reduce((s, p) => s + requirementsFor(p.jabatan).length, 0), [pegawai, data]);
+  const coverage = totalReq > 0 ? Math.round((1 - totalGaps / totalReq) * 100) : 100;
+
+  return (
+    <div className="p-5 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="text-base font-semibold text-slate-800">Skill Matrix</h2>
+          <p className="text-xs text-slate-500">Pemetaan kompetensi pegawai vs requirement role · auto-detect gap</p>
+        </div>
+        <Select value={divFilter} onChange={e => setDivFilter(e.target.value)}
+          options={[{ value: 'all', label: 'Semua Divisi' }, ...DIVISI_LIST.map(d => ({ value: d, label: d }))]} />
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard label="Total Pegawai (filter)" value={pegawai.length} icon={Users} color="blue" />
+        <StatCard label="Total Kompetensi" value={competencies.length} icon={Target} color="violet" />
+        <StatCard label="Coverage Requirement" value={`${coverage}%`} icon={CheckCircle} color={coverage > 80 ? 'emerald' : coverage > 60 ? 'amber' : 'rose'}
+          delta={`${totalGaps} gap dari ${totalReq} requirement`} />
+        <StatCard label="Pegawai dengan Gap" value={allGaps.length} icon={AlertTriangle} color="rose" />
+      </div>
+
+      <Card padding="p-0">
+        <div className="px-5 pt-3">
+          <Tabs tabs={[{ id: 'matrix', label: 'Matrix View', count: pegawai.length }, { id: 'gap', label: 'Gap Analysis', count: allGaps.length }]}
+            active={tab} onChange={setTab} />
+        </div>
+
+        {tab === 'matrix' && (
+          <div className="overflow-x-auto p-3">
+            <table className="w-full text-xs">
+              <thead>
+                <tr>
+                  <th className="text-left px-3 py-2 sticky left-0 bg-white">Pegawai</th>
+                  {competencies.map(c => (
+                    <th key={c.id} className="px-2 py-2 text-center text-[10px] font-medium text-slate-600" style={{ minWidth: 90 }}>
+                      <div className="truncate" title={c.name}>{c.name}</div>
+                      <div className="text-slate-400 font-normal">{c.domain}</div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {pegawai.map(p => (
+                  <tr key={p.id} className="hover:bg-slate-50/50">
+                    <td className="px-3 py-2 sticky left-0 bg-white">
+                      <div className="font-medium text-slate-800 text-xs">{p.nama}</div>
+                      <div className="text-[10px] text-slate-500">{p.jabatan}</div>
+                    </td>
+                    {competencies.map(c => {
+                      const lvl = levelOf(p.id, c.id);
+                      const cfg = COMPETENCY_LEVELS[lvl];
+                      return (
+                        <td key={c.id} className="px-2 py-2 text-center">
+                          <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-medium ${cfg.color}`}>
+                            {lvl > 0 ? `L${lvl}` : '—'}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-3 flex items-center gap-2 text-[10px] text-slate-500 flex-wrap px-3 pb-2">
+              <span className="font-medium">Legenda level:</span>
+              {Object.entries(COMPETENCY_LEVELS).map(([k, l]) => (
+                <span key={k} className={`px-2 py-0.5 rounded-md ${l.color}`}>L{k} · {l.label}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tab === 'gap' && (
+          <div className="p-3 space-y-3">
+            {allGaps.length === 0 ? (
+              <EmptyState icon={CheckCircle} title="Tidak ada gap kompetensi" description="Semua pegawai memenuhi requirement role-nya." />
+            ) : allGaps.map(({ peg, gaps }) => (
+              <div key={peg.id} className="border border-slate-200 rounded-lg p-3">
+                <div className="flex items-center gap-3 mb-2 pb-2 border-b border-slate-100">
+                  <Avatar nama={peg.nama} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm text-slate-800">{peg.nama}</div>
+                    <div className="text-[11px] text-slate-500">{peg.jabatan} · {peg.divisi}</div>
+                  </div>
+                  <Badge className="bg-rose-100 text-rose-700">{gaps.length} gap</Badge>
+                </div>
+                <div className="space-y-1.5">
+                  {gaps.map(g => (
+                    <div key={g.cmp.id} className="flex items-center gap-2 text-xs">
+                      <span className="flex-1 text-slate-700">{g.cmp.name}</span>
+                      <Badge className={COMPETENCY_LEVELS[g.current].color}>L{g.current}</Badge>
+                      <ArrowRight className="w-3 h-3 text-slate-400" />
+                      <Badge className={COMPETENCY_LEVELS[g.target].color}>L{g.target}</Badge>
+                      <span className="text-rose-600 font-medium w-8 text-right">+{g.gap}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 pt-2 border-t border-slate-100 flex items-start gap-2 text-[11px] text-slate-600">
+                  <Lightbulb className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <span>Rekomendasi: cari SME di domain <b>{gaps[0]?.cmp.domain}</b>, atau enroll ke learning path terkait.</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+};
+
+// =================================================================================
+// MODULE: KM ANALYTICS
+// =================================================================================
+
+const KMAnalyticsModule = ({ data, onNavigate }) => {
+  const assets = data.knowledgeAsset;
+  const published = assets.filter(a => (a.status || 'published') === 'published');
+  const draft = assets.filter(a => a.status === 'draft');
+  const reviewing = assets.filter(a => a.status === 'review');
+  const archived = assets.filter(a => a.status === 'archived');
+
+  const dormant = useMemo(() => {
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
+    return assets.filter(a => a.lastViewedAt && new Date(a.lastViewedAt) < cutoff)
+      .sort((a, b) => new Date(a.lastViewedAt) - new Date(b.lastViewedAt));
+  }, [assets]);
+
+  const overdue = useMemo(() =>
+    assets.filter(a => a.reviewDate && daysUntil(a.reviewDate) < 0)
+      .sort((a, b) => new Date(a.reviewDate) - new Date(b.reviewDate))
+  , [assets]);
+
+  const trending = useMemo(() => assets.slice().sort((a, b) => b.views - a.views).slice(0, 5), [assets]);
+
+  const ratedAssets = assets.filter(a => (a.ratingsUp || 0) + (a.ratingsDown || 0) > 0);
+  const avgRating = ratedAssets.length === 0 ? 0 :
+    ratedAssets.reduce((s, a) => s + ((a.ratingsUp || 0) / ((a.ratingsUp || 0) + (a.ratingsDown || 0))), 0) / ratedAssets.length;
+
+  const contributors = useMemo(() => {
+    const counts = {};
+    assets.forEach(a => { counts[a.owner] = (counts[a.owner] || 0) + 1; });
+    data.sme.forEach(s => { counts[s.pegawaiId] = (counts[s.pegawaiId] || 0) + s.kontribusi; });
+    return Object.entries(counts)
+      .map(([id, n]) => ({ peg: findPegawai(data, id), score: n }))
+      .filter(x => x.peg)
+      .sort((a, b) => b.score - a.score).slice(0, 5);
+  }, [data]);
+
+  const tagCount = useMemo(() => {
+    const t = {};
+    assets.forEach(a => a.tags.forEach(tag => { t[tag] = (t[tag] || 0) + 1; }));
+    return Object.entries(t).sort((a, b) => b[1] - a[1]).slice(0, 12);
+  }, [assets]);
+
+  // Health score (0-100): published ratio (40%) + non-dormant ratio (30%) + non-overdue ratio (30%)
+  const healthScore = useMemo(() => {
+    const pubR = assets.length ? published.length / assets.length : 0;
+    const dormR = assets.length ? 1 - (dormant.length / assets.length) : 0;
+    const overR = assets.length ? 1 - (overdue.length / assets.length) : 0;
+    return Math.round((pubR * 40 + dormR * 30 + overR * 30));
+  }, [assets, published, dormant, overdue]);
+
+  const healthColor = healthScore >= 80 ? 'emerald' : healthScore >= 60 ? 'amber' : 'rose';
+
+  return (
+    <div className="p-5 space-y-4">
+      <div>
+        <h2 className="text-base font-semibold text-slate-800">KM Analytics</h2>
+        <p className="text-xs text-slate-500">Health score, dormant detection, top contributors, dan trending knowledge</p>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card padding="p-4" className={`!border-${healthColor}-200 !bg-${healthColor}-50/40`}>
+          <div className="text-xs text-slate-600 mb-1">KM Health Score</div>
+          <div className={`text-3xl font-bold text-${healthColor}-700`}>{healthScore}<span className="text-base text-slate-400">/100</span></div>
+          <div className="text-[11px] text-slate-500 mt-1">Published, fresh, & up-to-date</div>
+        </Card>
+        <StatCard label="Total Asset" value={assets.length} icon={Database} color="violet"
+          delta={`${published.length} published · ${draft.length} draft`} />
+        <StatCard label="Dormant (90+ hari)" value={dormant.length} icon={TrendingDown} color={dormant.length > 0 ? 'rose' : 'emerald'}
+          delta="Tidak dibuka sejak Q1" />
+        <StatCard label="Overdue Review" value={overdue.length} icon={AlertTriangle} color={overdue.length > 0 ? 'amber' : 'emerald'}
+          delta="Review date terlewat" />
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-4">
+        <Card>
+          <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-1.5"><Flame className="w-4 h-4 text-rose-500" />Trending (Most Viewed)</h3>
+          <div className="space-y-2">
+            {trending.map((a, i) => {
+              const t = ASSET_TYPES[a.type];
+              return (
+                <div key={a.id} className="flex items-center gap-2">
+                  <div className="text-xs font-bold text-slate-400 w-5">#{i+1}</div>
+                  <div className={`w-7 h-7 rounded ${t.color} flex items-center justify-center flex-shrink-0`}>
+                    <t.icon className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-slate-800 truncate">{a.judul}</div>
+                    <div className="text-[10px] text-slate-500">{a.views} views</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        <Card>
+          <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-1.5"><Star className="w-4 h-4 text-amber-500" />Top Contributors</h3>
+          <div className="space-y-2">
+            {contributors.map((c, i) => (
+              <div key={c.peg.id} className="flex items-center gap-2">
+                <div className="text-xs font-bold text-slate-400 w-5">#{i+1}</div>
+                <Avatar nama={c.peg.nama} size="xs" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-slate-800 truncate">{c.peg.nama}</div>
+                  <div className="text-[10px] text-slate-500">{c.peg.divisi}</div>
+                </div>
+                <Badge className="bg-emerald-100 text-emerald-700">{c.score}</Badge>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card>
+          <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-1.5"><TrendingDown className="w-4 h-4 text-rose-500" />Dormant Assets</h3>
+          <div className="space-y-2">
+            {dormant.length === 0 ? <div className="text-xs text-slate-500 italic">Semua asset aktif 👍</div> : dormant.slice(0, 5).map(a => {
+              const lastDays = daysSince(a.lastViewedAt || a.createdAt);
+              return (
+                <div key={a.id} className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-rose-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-slate-800 truncate">{a.judul}</div>
+                    <div className="text-[10px] text-slate-500">Terakhir dibuka {lastDays} hari lalu</div>
+                  </div>
+                </div>
+              );
+            })}
+            {dormant.length > 0 && (
+              <button onClick={() => onNavigate('km-asset')} className="text-[11px] text-emerald-700 hover:text-emerald-800 font-medium mt-2 flex items-center gap-1">
+                Lihat semua di Knowledge Asset <ArrowRight className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {overdue.length > 0 && (
+        <Card className="!border-amber-200 !bg-amber-50/30">
+          <h3 className="text-sm font-semibold text-amber-900 mb-3 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" />Asset Perlu Review</h3>
+          <div className="space-y-1.5">
+            {overdue.slice(0, 6).map(a => (
+              <div key={a.id} className="flex items-center gap-2 text-xs">
+                <span className="flex-1 text-amber-900 font-medium truncate">{a.judul}</span>
+                <span className="text-amber-700">v{a.version}</span>
+                <Badge className="bg-rose-100 text-rose-700">{Math.abs(daysUntil(a.reviewDate))}h terlewat</Badge>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Card>
+        <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-1.5"><Tag className="w-4 h-4 text-violet-500" />Tag Cloud</h3>
+        <div className="flex flex-wrap gap-2">
+          {tagCount.map(([tag, n]) => (
+            <span key={tag} className="px-2.5 py-1 bg-violet-50 text-violet-700 rounded-full text-xs"
+              style={{ fontSize: `${Math.min(16, 10 + n * 1.5)}px` }}>
+              {tag} <span className="text-violet-400">({n})</span>
+            </span>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <h3 className="text-sm font-semibold text-slate-800 mb-3">Quality Snapshot</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+          <div>
+            <div className="text-2xl font-semibold text-emerald-700">{Math.round(avgRating * 100)}%</div>
+            <div className="text-[10px] text-slate-500 uppercase tracking-wide">Helpful ratio</div>
+          </div>
+          <div>
+            <div className="text-2xl font-semibold text-blue-700">{reviewing.length}</div>
+            <div className="text-[10px] text-slate-500 uppercase tracking-wide">In review</div>
+          </div>
+          <div>
+            <div className="text-2xl font-semibold text-slate-700">{archived.length}</div>
+            <div className="text-[10px] text-slate-500 uppercase tracking-wide">Archived</div>
+          </div>
+          <div>
+            <div className="text-2xl font-semibold text-violet-700">{(data.bookmarks || []).length}</div>
+            <div className="text-[10px] text-slate-500 uppercase tracking-wide">Total bookmarks</div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+// =================================================================================
+// MODULE: ASK THE EXPERT (Q&A with auto-routing to SMEs)
+// =================================================================================
+
+const AskExpertModule = ({ data, onUpdate, showToast }) => {
+  const [tab, setTab] = useState('open');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState({ title: '', body: '', domain: KM_DOMAINS[0] });
+  const [viewing, setViewing] = useState(null);
+  const [answerText, setAnswerText] = useState('');
+
+  const questions = data.questions || [];
+  const counts = useMemo(() => ({
+    open: questions.filter(q => q.status === 'open').length,
+    answered: questions.filter(q => q.status === 'answered').length,
+    resolved: questions.filter(q => q.status === 'resolved').length,
+    mine: questions.filter(q => q.askerId === CURRENT_USER_ID).length,
+  }), [questions]);
+
+  const filtered = useMemo(() => {
+    let list = questions.slice();
+    if (tab === 'mine') list = list.filter(q => q.askerId === CURRENT_USER_ID);
+    else list = list.filter(q => q.status === tab);
+    return list.sort((a, b) => new Date(b.askedAt) - new Date(a.askedAt));
+  }, [questions, tab]);
+
+  const routedSMEs = (domain) => {
+    if (!domain) return [];
+    const dl = domain.toLowerCase();
+    return data.sme.filter(s => s.domain.toLowerCase().includes(dl));
+  };
+
+  const submitQuestion = () => {
+    if (!form.title.trim() || !form.body.trim()) { showToast('Judul & detail wajib diisi', 'error'); return; }
+    const newQ = {
+      id: uid('q'), askerId: CURRENT_USER_ID, title: form.title, body: form.body, domain: form.domain,
+      status: 'open', askedAt: new Date().toISOString(), answers: [],
+    };
+    onUpdate({ ...data, questions: [newQ, ...questions] });
+    const routed = routedSMEs(form.domain);
+    showToast(routed.length > 0 ? `Pertanyaan di-route ke ${routed.length} SME` : 'Pertanyaan diposting (belum ada SME di domain ini)');
+    setModalOpen(false);
+    setForm({ title: '', body: '', domain: KM_DOMAINS[0] });
+  };
+
+  const submitAnswer = () => {
+    if (!answerText.trim() || !viewing) return;
+    const newA = { id: uid('a'), smeId: CURRENT_USER_ID, body: answerText, votes: 0, createdAt: new Date().toISOString(), promotedToAssetId: null };
+    const updated = questions.map(q => q.id === viewing.id
+      ? { ...q, answers: [...q.answers, newA], status: q.status === 'open' ? 'answered' : q.status }
+      : q);
+    onUpdate({ ...data, questions: updated });
+    setViewing(updated.find(q => q.id === viewing.id));
+    setAnswerText('');
+    showToast('Jawaban dikirim');
+  };
+
+  const voteAnswer = (answerId, delta) => {
+    const updated = questions.map(q => q.id === viewing.id
+      ? { ...q, answers: q.answers.map(a => a.id === answerId ? { ...a, votes: a.votes + delta } : a) }
+      : q);
+    onUpdate({ ...data, questions: updated });
+    setViewing(updated.find(q => q.id === viewing.id));
+  };
+
+  const markResolved = () => {
+    const updated = questions.map(q => q.id === viewing.id ? { ...q, status: 'resolved' } : q);
+    onUpdate({ ...data, questions: updated });
+    setViewing(updated.find(q => q.id === viewing.id));
+    showToast('Pertanyaan ditandai resolved');
+  };
+
+  const promoteToAsset = (answer) => {
+    const newAsset = {
+      id: uid('ka'), judul: `Q&A: ${viewing.title}`, type: 'lesson',
+      tags: [viewing.domain, 'Q&A'], owner: answer.smeId,
+      description: `**Pertanyaan:** ${viewing.body}\n\n**Jawaban (SME):** ${answer.body}`,
+      status: 'published', version: '1.0',
+      reviewDate: (() => { const d = new Date(); d.setMonth(d.getMonth() + 12); return d.toISOString().split('T')[0]; })(),
+      ratingsUp: answer.votes, ratingsDown: 0, comments: [], views: 0,
+      lastViewedAt: new Date().toISOString(), createdAt: new Date().toISOString(),
+    };
+    const updatedQuestions = questions.map(q => q.id === viewing.id
+      ? { ...q, answers: q.answers.map(a => a.id === answer.id ? { ...a, promotedToAssetId: newAsset.id } : a), status: 'resolved' }
+      : q);
+    onUpdate({ ...data, knowledgeAsset: [newAsset, ...data.knowledgeAsset], questions: updatedQuestions });
+    setViewing(updatedQuestions.find(q => q.id === viewing.id));
+    showToast('Jawaban dipromote menjadi Knowledge Asset baru');
+  };
+
+  return (
+    <div className="p-5 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="text-base font-semibold text-slate-800">Ask the Expert</h2>
+          <p className="text-xs text-slate-500">Tanya SME · jawaban terbaik bisa dipromote menjadi Knowledge Asset</p>
+        </div>
+        <Button variant="primary" icon={Plus} onClick={() => setModalOpen(true)}>Ajukan Pertanyaan</Button>
+      </div>
+
+      <Card padding="p-0">
+        <div className="px-5 pt-3">
+          <Tabs tabs={[
+            { id: 'open', label: 'Open', count: counts.open },
+            { id: 'answered', label: 'Answered', count: counts.answered },
+            { id: 'resolved', label: 'Resolved', count: counts.resolved },
+            { id: 'mine', label: 'Pertanyaan Saya', count: counts.mine },
+          ]} active={tab} onChange={setTab} />
+        </div>
+
+        {filtered.length === 0 ? (
+          <EmptyState icon={HelpCircle} title="Tidak ada pertanyaan" description="Belum ada pertanyaan di kategori ini." />
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {filtered.map(q => {
+              const asker = findPegawai(data, q.askerId);
+              const routed = routedSMEs(q.domain);
+              return (
+                <button key={q.id} onClick={() => setViewing(q)}
+                  className="w-full text-left p-4 hover:bg-slate-50 flex items-start gap-3">
+                  <Avatar nama={asker?.nama || '??'} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="text-sm font-medium text-slate-800">{q.title}</span>
+                      <StatusBadge status={q.status} map={QUESTION_STATUS} />
+                    </div>
+                    <div className="text-xs text-slate-500 line-clamp-1">{q.body}</div>
+                    <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
+                      <span>{asker?.nama}</span><span>·</span>
+                      <span>{q.domain}</span><span>·</span>
+                      <span>{formatDate(q.askedAt)}</span><span>·</span>
+                      <span>{q.answers.length} jawaban</span>
+                      {q.status === 'open' && <Badge className="bg-blue-50 text-blue-700">→ {routed.length} SME</Badge>}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Ajukan Pertanyaan ke SME" size="lg">
+        <div className="p-5 space-y-3">
+          <Input label="Judul Pertanyaan *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
+            placeholder="contoh: Bagaimana cara assess risiko investasi sukuk?" />
+          <Select label="Domain (untuk routing ke SME)" value={form.domain} onChange={e => setForm({ ...form, domain: e.target.value })}
+            options={KM_DOMAINS.map(d => ({ value: d, label: d }))} />
+          <Textarea label="Detail pertanyaan *" value={form.body} onChange={e => setForm({ ...form, body: e.target.value })}
+            placeholder="Jelaskan konteks & detail pertanyaan..." />
+          <div className="text-[11px] text-slate-600 bg-blue-50 p-2.5 rounded-md flex items-start gap-2">
+            <Lightbulb className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-blue-600" />
+            <div>
+              <b>{routedSMEs(form.domain).length}</b> SME akan menerima notifikasi:{' '}
+              {routedSMEs(form.domain).map(s => findPegawai(data, s.pegawaiId)?.nama).filter(Boolean).join(', ') || 'belum ada SME di domain ini'}
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setModalOpen(false)}>Batal</Button>
+            <Button variant="primary" icon={SendIcon} onClick={submitQuestion}>Kirim Pertanyaan</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={!!viewing} onClose={() => setViewing(null)} title="Detail Pertanyaan" size="xl">
+        {viewing && (() => {
+          const asker = findPegawai(data, viewing.askerId);
+          const routed = routedSMEs(viewing.domain);
+          const isAsker = viewing.askerId === CURRENT_USER_ID;
+          const sortedAnswers = viewing.answers.slice().sort((a, b) => b.votes - a.votes);
+          return (
+            <div className="p-5 space-y-4">
+              <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
+                <Avatar nama={asker?.nama || '??'} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-base font-semibold text-slate-800">{viewing.title}</h3>
+                    <StatusBadge status={viewing.status} map={QUESTION_STATUS} />
+                  </div>
+                  <div className="text-xs text-slate-500 mt-0.5">
+                    {asker?.nama} · {asker?.jabatan} · {formatDate(viewing.askedAt)} · Domain: <b>{viewing.domain}</b>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-slate-700 whitespace-pre-wrap">{viewing.body}</p>
+
+              <div className="flex items-center gap-2 text-xs text-slate-600 bg-blue-50/50 p-2 rounded-md">
+                <Compass className="w-3.5 h-3.5 text-blue-600" />
+                Di-route ke <b>{routed.length} SME</b>: {routed.map(s => findPegawai(data, s.pegawaiId)?.nama).filter(Boolean).join(', ') || '—'}
+              </div>
+
+              <div className="pt-3 border-t border-slate-100">
+                <div className="text-xs font-medium text-slate-600 mb-2">Jawaban ({sortedAnswers.length})</div>
+                <div className="space-y-3">
+                  {sortedAnswers.map(a => {
+                    const sme = findPegawai(data, a.smeId);
+                    return (
+                      <div key={a.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50/50">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Avatar nama={sme?.nama || '??'} size="xs" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-medium text-slate-800">{sme?.nama} <Badge className="bg-violet-100 text-violet-700 ml-1"><Award className="w-3 h-3" />SME</Badge></div>
+                            <div className="text-[10px] text-slate-500">{formatDate(a.createdAt)}</div>
+                          </div>
+                          {a.promotedToAssetId && <Badge className="bg-emerald-100 text-emerald-700"><CheckCircle className="w-3 h-3" />Promoted to Asset</Badge>}
+                        </div>
+                        <p className="text-sm text-slate-700 whitespace-pre-wrap">{a.body}</p>
+                        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+                          <Rating up={a.votes} down={0} onUp={() => voteAnswer(a.id, 1)} onDown={() => voteAnswer(a.id, -1)} compact />
+                          {isAsker && !a.promotedToAssetId && (
+                            <Button size="sm" icon={FileCheck} onClick={() => promoteToAsset(a)}>Promote ke Knowledge Asset</Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {sortedAnswers.length === 0 && <div className="text-xs text-slate-500 italic">Belum ada jawaban. SME akan dapat notifikasi.</div>}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 space-y-2">
+                <div className="text-xs font-medium text-slate-600">Tambah Jawaban</div>
+                <Textarea value={answerText} onChange={e => setAnswerText(e.target.value)}
+                  placeholder="Jawaban Anda sebagai SME / kolega..." />
+                <div className="flex justify-between items-center">
+                  {isAsker && viewing.status === 'answered' && (
+                    <Button icon={CheckCircle} onClick={markResolved}>Tandai Resolved</Button>
+                  )}
+                  <div className="ml-auto">
+                    <Button variant="primary" icon={SendIcon} onClick={submitAnswer}>Kirim Jawaban</Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+    </div>
+  );
+};
+
+// =================================================================================
 // MAIN APP
 // =================================================================================
 
@@ -1929,7 +3348,11 @@ const PAGE_META = {
   'km-sme': { title: 'SME Development', subtitle: 'Pilar 1 KM' },
   'km-map': { title: 'Knowledge Map', subtitle: 'Pilar 2 KM' },
   'km-cop': { title: 'Community of Practice', subtitle: 'Pilar 3 KM' },
-  'km-asset': { title: 'Knowledge Asset', subtitle: 'Pilar 4 KM' },
+  'km-asset': { title: 'Knowledge Asset', subtitle: 'Pilar 4 KM · lifecycle, ratings & knowledge graph' },
+  'km-paths': { title: 'Learning Paths', subtitle: 'Kurikulum terstruktur per role' },
+  'km-skill': { title: 'Skill Matrix', subtitle: 'Pemetaan kompetensi & gap analysis' },
+  'km-qa': { title: 'Ask the Expert', subtitle: 'Q&A dengan auto-routing ke SME' },
+  'km-analytics': { title: 'KM Analytics', subtitle: 'Health score, dormant & contributor insights' },
   'tms-overview': { title: 'Talent Management System', subtitle: 'Acquisition → Development → Alignment' },
   'tms-9box': { title: '9-Box Talent Mapping', subtitle: 'Acquisition stage' },
   'tms-pool': { title: 'Talent Pool', subtitle: 'Development & alignment stage' },
@@ -1944,7 +3367,6 @@ export default function KMLSApp() {
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [toast, setToast] = useState({ message: '', type: 'success' });
-  const [globalSearch, setGlobalSearch] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -1976,6 +3398,7 @@ export default function KMLSApp() {
     if (!data) return {};
     return {
       pendingPengajuan: data.pengajuan.filter(p => p.status === 'pending' || p.status === 'review').length,
+      openQuestions: (data.questions || []).filter(q => q.status === 'open').length,
     };
   }, [data]);
 
@@ -2000,7 +3423,11 @@ export default function KMLSApp() {
       case 'km-sme': return <SMEModule data={data} onUpdate={setData} showToast={showToast} />;
       case 'km-map': return <KnowledgeMapModule data={data} />;
       case 'km-cop': return <CoPModule data={data} />;
-      case 'km-asset': return <KnowledgeAssetModule data={data} onUpdate={setData} showToast={showToast} />;
+      case 'km-asset': return <KnowledgeAssetModule data={data} onUpdate={setData} showToast={showToast} onNavigate={setView} />;
+      case 'km-paths': return <LearningPathsModule data={data} onUpdate={setData} showToast={showToast} />;
+      case 'km-skill': return <SkillMatrixModule data={data} />;
+      case 'km-qa': return <AskExpertModule data={data} onUpdate={setData} showToast={showToast} />;
+      case 'km-analytics': return <KMAnalyticsModule data={data} onNavigate={setView} />;
       case 'tms-overview': return <TMSOverviewModule data={data} onNavigate={setView} />;
       case 'tms-9box': return <NineBoxModule data={data} />;
       case 'tms-pool': return <TalentPoolModule data={data} />;
@@ -2019,7 +3446,7 @@ export default function KMLSApp() {
         collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
       <main className="flex-1 flex flex-col overflow-hidden">
         <TopBar title={meta.title} subtitle={meta.subtitle}
-          search={globalSearch} setSearch={setGlobalSearch}
+          data={data} onNavigate={setView}
           onMenu={() => setSidebarCollapsed(!sidebarCollapsed)}
           actions={
             <button className="relative p-1.5 hover:bg-slate-100 rounded-md">
@@ -2031,6 +3458,7 @@ export default function KMLSApp() {
           } />
         <div className="flex-1 overflow-y-auto">
           {renderView()}
+          <AppFooter />
         </div>
       </main>
       <Toast message={toast.message} type={toast.type} />
