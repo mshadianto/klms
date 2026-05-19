@@ -634,6 +634,11 @@ const AppFooter = () => (
              className="text-slate-500 hover:text-emerald-700 inline-flex items-center gap-1">
             <GitBranch className="w-3 h-3" />github.com/mshadianto/klms
           </a>
+          <span className="text-slate-400">·</span>
+          <a href="/check.html" target="_blank" rel="noopener noreferrer"
+             className="text-slate-500 hover:text-emerald-700 inline-flex items-center gap-1">
+            <HelpCircle className="w-3 h-3" />Troubleshooting
+          </a>
         </div>
       </div>
       <div className="text-[10.5px] text-slate-500 leading-relaxed bg-amber-50 border border-amber-200 rounded-md px-3 py-2">

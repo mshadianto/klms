@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="pragma" content="no-cache" />
+  <meta http-equiv="expires" content="0" />
+  <title>KMLS — Connectivity Check</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); color: #1e293b;
+      min-height: 100vh; padding: 24px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    .wrap { max-width: 720px; margin: 0 auto; }
+    .hero { background: white; border-radius: 16px; padding: 32px 28px; box-shadow: 0 4px 24px rgba(0,0,0,.06); margin-bottom: 16px; }
+    .ok { display: inline-flex; align-items: center; gap: 8px; background: #d1fae5; color: #065f46;
+      padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+    .ok::before { content: ''; width: 8px; height: 8px; background: #10b981; border-radius: 50%;
+      box-shadow: 0 0 0 4px rgba(16,185,129,0.2); animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+    h1 { font-size: 24px; margin-bottom: 8px; color: #0f172a; }
+    .sub { color: #64748b; font-size: 14px; margin-bottom: 16px; }
+    .card { background: white; border-radius: 12px; padding: 20px 22px; margin-bottom: 14px; box-shadow: 0 2px 12px rgba(0,0,0,.04); }
+    h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #475569; margin-bottom: 14px; font-weight: 600; }
+    .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0;
+      border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+    .row:last-child { border-bottom: none; }
+    .row .label { color: #64748b; }
+    .row .val { color: #0f172a; font-family: ui-monospace, 'SF Mono', Consolas, monospace; font-size: 12px;
+      max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .b-ok { background: #d1fae5; color: #065f46; }
+    .b-warn { background: #fef3c7; color: #92400e; }
+    .b-err { background: #fee2e2; color: #991b1b; }
+    .b-info { background: #dbeafe; color: #1e40af; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; background: #047857; color: white;
+      padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500;
+      transition: background .15s; margin: 4px 6px 4px 0; }
+    .btn:hover { background: #065f46; }
+    .btn.secondary { background: white; color: #047857; border: 1px solid #047857; }
+    .btn.secondary:hover { background: #f0fdf4; }
+    .mirror-list { list-style: none; }
+    .mirror-list li { padding: 12px 0; border-bottom: 1px solid #f1f5f9; display: flex;
+      justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .mirror-list li:last-child { border-bottom: none; }
+    .mirror-list .url { font-family: ui-monospace, monospace; font-size: 12px; color: #475569; word-break: break-all; }
+    .mirror-list a.test-link { font-size: 12px; color: #047857; text-decoration: none; font-weight: 500;
+      padding: 4px 10px; border-radius: 6px; background: #f0fdf4; }
+    .mirror-list a.test-link:hover { background: #dcfce7; }
+    .help { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px 16px;
+      font-size: 13px; color: #78350f; }
+    .help b { color: #422006; }
+    .help ul { margin-top: 8px; padding-left: 20px; }
+    .help li { margin: 4px 0; }
+    code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 12px;
+      font-family: ui-monospace, monospace; color: #0f172a; }
+    footer { text-align: center; color: #94a3b8; font-size: 11px; padding: 16px; }
+    .test-result { margin-left: 8px; font-weight: 600; font-size: 11px; }
+    .t-pending { color: #d97706; }
+    .t-ok { color: #059669; }
+    .t-fail { color: #dc2626; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div class="hero">
+      <div class="ok">Halaman ini berhasil dimuat</div>
+      <h1>🩺 KMLS — Connectivity Check</h1>
+      <p class="sub">Halaman diagnostic standalone (tanpa React). Jika halaman ini terbuka, berarti koneksi browser Anda dapat menjangkau server KMLS — tetapi mungkin ada masalah loading bundle aplikasi utama atau cache.</p>
+      <a href="/" class="btn">→ Coba Akses Aplikasi Utama</a>
+      <a href="/" class="btn secondary" onclick="event.preventDefault(); location.reload(true);">↻ Reload Halaman Ini</a>
+    </div>
+
+    <div class="card">
+      <h2>Browser & Network</h2>
+      <div class="row"><span class="label">URL saat ini</span><span class="val" id="url">—</span></div>
+      <div class="row"><span class="label">Host</span><span class="val" id="host">—</span></div>
+      <div class="row"><span class="label">Protocol</span><span class="val" id="proto">—</span></div>
+      <div class="row"><span class="label">Browser online</span><span id="online">—</span></div>
+      <div class="row"><span class="label">User Agent</span><span class="val" id="ua">—</span></div>
+      <div class="row"><span class="label">Cookies enabled</span><span id="cookies">—</span></div>
+      <div class="row"><span class="label">localStorage</span><span id="storage">—</span></div>
+      <div class="row"><span class="label">Waktu lokal</span><span class="val" id="time">—</span></div>
+      <div class="row"><span class="label">Timezone</span><span class="val" id="tz">—</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Endpoint Reachability Test</h2>
+      <p class="sub" style="margin-bottom:12px">Mencoba load resource kecil dari beberapa domain berbeda untuk identifikasi blocking.</p>
+      <div class="row"><span class="label">klms.mshadianto.id (favicon)</span><span id="t-self">⏳ <span class="test-result t-pending">testing...</span></span></div>
+      <div class="row"><span class="label">mshadianto.github.io</span><span id="t-gh">⏳ <span class="test-result t-pending">testing...</span></span></div>
+      <div class="row"><span class="label">cdnjs.cloudflare.com</span><span id="t-cf">⏳ <span class="test-result t-pending">testing...</span></span></div>
+      <div class="row"><span class="label">cdn.jsdelivr.net</span><span id="t-jsd">⏳ <span class="test-result t-pending">testing...</span></span></div>
+    </div>
+
+    <div class="card">
+      <h2>Mirror & Alternative URLs</h2>
+      <ul class="mirror-list">
+        <li>
+          <div>
+            <div><b>Custom Domain</b> <span class="badge b-info">primary</span></div>
+            <div class="url">https://klms.mshadianto.id/</div>
+          </div>
+          <a href="https://klms.mshadianto.id/" class="test-link" target="_blank">Buka →</a>
+        </li>
+        <li>
+          <div>
+            <div><b>GitHub Pages Direct</b> <span class="badge b-info">backup</span></div>
+            <div class="url">https://mshadianto.github.io/klms/</div>
+          </div>
+          <a href="https://mshadianto.github.io/klms/" class="test-link" target="_blank">Buka →</a>
+        </li>
+        <li>
+          <div>
+            <div><b>HTTP (insecure, debug only)</b> <span class="badge b-warn">debug</span></div>
+            <div class="url">http://klms.mshadianto.id/</div>
+          </div>
+          <a href="http://klms.mshadianto.id/" class="test-link" target="_blank">Buka →</a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Troubleshooting Cepat</h2>
+      <div class="help">
+        <b>Jika aplikasi utama tidak terbuka tetapi halaman ini terbuka:</b>
+        <ul>
+          <li>Hard reload: <code>Ctrl + Shift + R</code> (Windows) atau <code>Cmd + Shift + R</code> (Mac)</li>
+          <li>Coba private/incognito mode untuk eliminasi cache & extension</li>
+          <li>Disable browser extension AdBlocker / antivirus web filter</li>
+          <li>Coba browser lain (Chrome ↔ Edge ↔ Firefox)</li>
+          <li>Coba dari jaringan lain (hotspot HP) untuk eliminasi firewall kantor</li>
+        </ul>
+      </div>
+      <div class="help" style="margin-top:10px">
+        <b>Jika semua URL di atas gagal:</b>
+        <ul>
+          <li>Kemungkinan firewall korporat memblokir GitHub Pages / Cloudflare</li>
+          <li>Hubungi IT untuk whitelist <code>*.mshadianto.id</code> dan <code>*.github.io</code></li>
+          <li>Lapor ke <a href="mailto:sopian.hadianto@gmail.com?subject=KMLS%20-%20Akses%20Bermasalah&body=Halo%2C%0A%0ABrowser%3A%20%0AOS%3A%20%0AJaringan%3A%20%0AError%20yang%20muncul%3A%20%0A%0ATerima%20kasih.">sopian.hadianto@gmail.com</a> dengan info browser, OS, jaringan, dan screenshot error</li>
+        </ul>
+      </div>
+    </div>
+
+    <footer>
+      KMLS Connectivity Check · Standalone diagnostic page (no JS framework)
+    </footer>
+  </div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  $('url').textContent = location.href;
+  $('host').textContent = location.host;
+  $('proto').textContent = location.protocol;
+  $('ua').textContent = navigator.userAgent;
+  $('ua').title = navigator.userAgent;
+
+  var setBadge = function (id, text, cls) {
+    var el = $(id);
+    el.innerHTML = '<span class="badge ' + cls + '">' + text + '</span>';
+  };
+
+  setBadge('online', navigator.onLine ? 'YES' : 'NO', navigator.onLine ? 'b-ok' : 'b-err');
+  setBadge('cookies', navigator.cookieEnabled ? 'YES' : 'NO', navigator.cookieEnabled ? 'b-ok' : 'b-err');
+  try {
+    localStorage.setItem('__t__', '1'); localStorage.removeItem('__t__');
+    setBadge('storage', 'OK', 'b-ok');
+  } catch (e) {
+    setBadge('storage', 'DISABLED', 'b-err');
+  }
+
+  var now = new Date();
+  $('time').textContent = now.toLocaleString();
+  try { $('tz').textContent = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) { $('tz').textContent = '—'; }
+
+  // Endpoint reachability test via image preload (works around CORS)
+  var testEndpoint = function (id, url, timeoutMs) {
+    var el = $(id);
+    var done = false;
+    var img = new Image();
+    var start = Date.now();
+    var finish = function (ok, label, cls) {
+      if (done) return;
+      done = true;
+      var ms = Date.now() - start;
+      el.innerHTML = (ok ? '✅' : '❌') + ' <span class="test-result ' + cls + '">' + label + ' (' + ms + 'ms)</span>';
+    };
+    img.onload = function () { finish(true, 'OK', 't-ok'); };
+    img.onerror = function () {
+      // For our own favicon, onerror is fine if the request reached the server (404 is still a hit)
+      // For external, onerror could mean blocked or actual error — treat as fail
+      if (url.indexOf(location.host) !== -1) finish(true, 'REACHED', 't-ok');
+      else finish(false, 'BLOCKED/FAIL', 't-fail');
+    };
+    setTimeout(function () { finish(false, 'TIMEOUT', 't-fail'); }, timeoutMs);
+    img.src = url + (url.indexOf('?') > -1 ? '&' : '?') + 'cb=' + Date.now();
+  };
+
+  testEndpoint('t-self', '/favicon.ico', 5000);
+  testEndpoint('t-gh',   'https://mshadianto.github.io/klms/favicon.ico', 8000);
+  testEndpoint('t-cf',   'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js', 8000);
+  testEndpoint('t-jsd',  'https://cdn.jsdelivr.net/npm/lodash@4/package.json', 8000);
+})();
+</script>
+</body>
+</html>
