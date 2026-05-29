@@ -166,13 +166,21 @@ flowchart LR
 
 </details>
 
-## 📕 Manual Book
+## 📕 Dokumentasi
 
-Dokumentasi lengkap pengguna & administrator tersedia dalam bentuk **HTML print-ready** (33 halaman A4) di [`docs/manual-book.html`](./docs/manual-book.html).
+| Dokumen | Format | Link |
+|---|---|---|
+| **Manual Book v1.1** | PDF (siap unduh) | [📥 Download PDF](./KMLS%20%E2%80%94%20Manual%20Book%20v1.1.pdf) |
+| **Manual Book v1.1** | HTML print-ready (33 hlm A4) | [📖 Buka HTML](./docs/manual-book.html) |
+| **Business Process Flow** | PDF | [🔄 Download PDF](./KMLS-Business-Process-Flow.pdf) |
 
-**Isi:** Pengantar & disclaimer · Instalasi & navigasi · Panduan tiap modul (Dashboard, Pengajuan, Pegawai, 4 pilar KM + 4 modul extended, 5 modul TMS) · Pengaturan & admin · 3 workflow end-to-end · FAQ · Troubleshooting · Glosarium 28 istilah · Roadmap.
+**Isi Manual Book:** Pengantar & disclaimer · Instalasi & navigasi · Panduan tiap modul (Dashboard, Pengajuan, Pegawai, 4 pilar KM + 4 modul extended, 5 modul TMS) · Pengaturan & admin · 3 workflow end-to-end · FAQ · Troubleshooting · Glosarium 28 istilah · Roadmap.
 
-**Cara ekspor ke PDF:**
+**Business Process Flow** mendokumentasikan alur proses end-to-end (pengajuan pelatihan, lifecycle Knowledge Asset, workflow talent & promosi).
+
+> 💡 PDF Manual Book adalah hasil ekspor dari `docs/manual-book.html`. Jika kamu mengubah HTML-nya, re-export PDF agar tidak *drift*.
+
+**Cara ekspor ulang ke PDF:**
 
 ```
 1. Buka docs/manual-book.html di browser
@@ -213,6 +221,8 @@ klms/
 ├── mockups/                 # 3 HTML design mockups (standalone)
 ├── .github/workflows/
 │   └── deploy.yml           # Auto-deploy ke GitHub Pages
+├── KMLS — Manual Book v1.1.pdf    # 📥 PDF hasil ekspor manual-book.html
+├── KMLS-Business-Process-Flow.pdf # 🔄 Diagram alur proses end-to-end
 ├── index.html               # Vite shell
 ├── vite.config.js           # base: '/' (root domain)
 ├── tailwind.config.js
