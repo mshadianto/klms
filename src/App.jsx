@@ -1,1159 +1,2622 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  LayoutDashboard, Send, Calendar, Users, BookOpen, MessageCircle, Settings as SettingsIcon,
-  Bell, Search, Plus, X, Filter, Download, ChevronRight, ChevronDown, ChevronLeft, Menu,
-  GraduationCap, Brain, Award, FileText, Briefcase, Target, Grid3x3, Replace, ArrowUpRight,
-  Activity, ClipboardCheck, CheckCircle, XCircle, Clock, AlertTriangle, AlertCircle,
-  Eye, Edit3, Trash2, Database, Map, Network, Video, Tag, Building2, Star, TrendingUp,
-  RefreshCw, MoreVertical, Save, UserPlus, User, Sparkles, BookOpenCheck, MapPin,
-  ArrowRight, Layers, BarChart3, ThumbsUp, ThumbsDown, Bookmark, History, MessageSquare,
-  HelpCircle, GitBranch, Compass, Route, Flame, Archive, FileCheck, Lightbulb, Link2,
-  TrendingDown, Send as SendIcon
+  LayoutDashboard, Users, GraduationCap, BookOpen, Award, FileText,
+  CheckCircle2, XCircle, Clock, AlertCircle, ChevronRight, ChevronDown,
+  Plus, Edit2, Trash2, Search, Filter, Download, Upload, Send,
+  Settings as SettingsIcon, LogOut, User, Shield, Briefcase,
+  Brain, Network, MessageSquare, Database, Target, TrendingUp,
+  Building2, Calendar, MapPin, DollarSign, ClipboardList, FileCheck,
+  Eye, ArrowLeft, ArrowRight, Save, X, Menu, Bell, ChevronLeft,
+  Sparkles, BarChart3, BookMarked, UserCog, FolderOpen, Printer,
+  CheckSquare, History, Lightbulb, Zap, Layers, FileSignature
 } from 'lucide-react';
 
-// =================================================================================
-// CONFIGURATION & CONSTANTS
-// =================================================================================
+// =====================================================================
+// CONSTANTS & CONFIGURATION
+// =====================================================================
 
-const APP_VERSION = '1.1.0';
-const STORAGE_KEY = 'kmls:appdata:v2';
-const CURRENT_USER_ID = 'p001'; // active session user — Sopian Hadianto
+const APP_VERSION = '2.0.0';
+const APP_NAME = 'KMLS';
+const APP_FULL_NAME = 'Knowledge Management & Learning System';
+const ORGANIZATION = 'Badan Pengelola Keuangan Haji';
 
-const NAV_STRUCTURE = [
+// ---- ROLES ----
+const ROLES = {
+  PEGAWAI: 'pegawai',
+  KADIV: 'kadiv',
+  DEPUTI: 'deputi',
+  PELAKSANA_PSDM: 'pelaksana_psdm',
+  KADIV_PSDM: 'kadiv_psdm',
+  ADMIN: 'admin',
+};
+
+const ROLE_META = {
+  [ROLES.PEGAWAI]:        { label: 'Pegawai',                  short: 'Pegawai',      icon: User,       color: 'bg-slate-100 text-slate-700' },
+  [ROLES.KADIV]:          { label: 'Kepala Divisi',            short: 'Kadiv',        icon: Briefcase,  color: 'bg-blue-100 text-blue-700' },
+  [ROLES.DEPUTI]:         { label: 'Deputi / Anggota BP',      short: 'Deputi',       icon: Shield,     color: 'bg-indigo-100 text-indigo-700' },
+  [ROLES.PELAKSANA_PSDM]: { label: 'Pelaksana PSDM',           short: 'Pelaksana',    icon: ClipboardList, color: 'bg-teal-100 text-teal-700' },
+  [ROLES.KADIV_PSDM]:     { label: 'Kadiv / Deputi PSDM',      short: 'Kadiv PSDM',   icon: UserCog,    color: 'bg-emerald-100 text-emerald-700' },
+  [ROLES.ADMIN]:          { label: 'Admin Sistem',             short: 'Admin',        icon: SettingsIcon, color: 'bg-rose-100 text-rose-700' },
+};
+
+// ---- TRAINING CATEGORIES (sesuai 5 kategori BPKH + Membership + S2) ----
+const CATEGORIES = {
+  K1: { code: 'K1', label: 'Kelembagaan & Budaya Kerja', short: 'Kelembagaan',   color: 'bg-blue-50 text-blue-700 border-blue-200',       chip: 'bg-blue-600' },
+  K2: { code: 'K2', label: 'Teknis Umum',                 short: 'Teknis Umum',   color: 'bg-cyan-50 text-cyan-700 border-cyan-200',       chip: 'bg-cyan-600' },
+  K3: { code: 'K3', label: 'Teknis Fungsional',           short: 'Teknis Fung.',  color: 'bg-teal-50 text-teal-700 border-teal-200',       chip: 'bg-teal-600' },
+  K4: { code: 'K4', label: 'Kepemimpinan Berjenjang',     short: 'Leadership',    color: 'bg-emerald-50 text-emerald-700 border-emerald-200', chip: 'bg-emerald-600' },
+  K5: { code: 'K5', label: 'Learning Wallet',             short: 'Learning Wallet', color: 'bg-amber-50 text-amber-700 border-amber-200',  chip: 'bg-amber-600' },
+  M1: { code: 'M1', label: 'Membership Profesi',          short: 'Membership',    color: 'bg-purple-50 text-purple-700 border-purple-200', chip: 'bg-purple-600' },
+  S2: { code: 'S2', label: 'Dukungan Pendidikan Magister (S2)', short: 'S2',      color: 'bg-rose-50 text-rose-700 border-rose-200',       chip: 'bg-rose-600' },
+};
+
+const CATEGORY_RULES = {
+  M1: { maxPerYear: 2, requiresTusiAlignment: true },
+  S2: { requiresHighLevelApproval: true },
+};
+
+// ---- 10-STEP APPROVAL STATE MACHINE ----
+const STAGES = [
+  { key: 'draft',           order: 0,  label: 'Draft',                    short: 'Draft',         actor: ROLES.PEGAWAI,        icon: Edit2,        color: 'bg-slate-100 text-slate-700' },
+  { key: 'submitted',       order: 1,  label: 'Diajukan ke Kadiv',        short: 'Submit',        actor: ROLES.PEGAWAI,        icon: Send,         color: 'bg-blue-100 text-blue-700' },
+  { key: 'approved_kadiv',  order: 2,  label: 'Disetujui Kadiv',          short: 'Acc Kadiv',     actor: ROLES.KADIV,          icon: CheckCircle2, color: 'bg-cyan-100 text-cyan-700' },
+  { key: 'approved_deputi', order: 3,  label: 'Disetujui Deputi/BP',      short: 'Acc Deputi',    actor: ROLES.DEPUTI,         icon: CheckCircle2, color: 'bg-indigo-100 text-indigo-700' },
+  { key: 'analyzing_psdm',  order: 4,  label: 'Analisa Pelaksana PSDM',   short: 'Analisa',       actor: ROLES.PELAKSANA_PSDM, icon: ClipboardList,color: 'bg-teal-100 text-teal-700' },
+  { key: 'approved_psdm',   order: 5,  label: 'Disetujui Kadiv/Deputi PSDM', short: 'Acc PSDM',   actor: ROLES.KADIV_PSDM,     icon: CheckCircle2, color: 'bg-emerald-100 text-emerald-700' },
+  { key: 'st_issued',       order: 6,  label: 'Surat Tugas Diterbitkan',  short: 'ST Issued',     actor: ROLES.PELAKSANA_PSDM, icon: FileSignature, color: 'bg-emerald-100 text-emerald-800' },
+  { key: 'registered',      order: 7,  label: 'Terdaftar di Penyelenggara', short: 'Terdaftar',   actor: ROLES.PELAKSANA_PSDM, icon: BookMarked,   color: 'bg-amber-100 text-amber-700' },
+  { key: 'in_progress',     order: 8,  label: 'Pelatihan Berlangsung',    short: 'Berlangsung',   actor: ROLES.PEGAWAI,        icon: Clock,        color: 'bg-orange-100 text-orange-700' },
+  { key: 'paid',            order: 9,  label: 'Pembayaran Selesai',       short: 'Dibayar',       actor: ROLES.PELAKSANA_PSDM, icon: DollarSign,   color: 'bg-lime-100 text-lime-700' },
+  { key: 'reported',        order: 10, label: 'Laporan + RTL Diserahkan', short: 'Laporan',       actor: ROLES.PEGAWAI,        icon: FileText,     color: 'bg-yellow-100 text-yellow-700' },
+  { key: 'evaluated',       order: 11, label: 'Evaluasi Level 3 Selesai', short: 'Evaluasi',      actor: ROLES.KADIV,          icon: Award,        color: 'bg-fuchsia-100 text-fuchsia-700' },
+  { key: 'completed',       order: 12, label: 'Closed-Loop (Sharing KM)', short: 'Closed',        actor: ROLES.PEGAWAI,        icon: CheckSquare,  color: 'bg-green-100 text-green-700' },
+  { key: 'rejected',        order: -1, label: 'Ditolak',                  short: 'Ditolak',       actor: null,                 icon: XCircle,      color: 'bg-red-100 text-red-700' },
+  { key: 'postponed',       order: -2, label: 'Ditunda',                  short: 'Ditunda',       actor: null,                 icon: AlertCircle,  color: 'bg-gray-100 text-gray-700' },
+];
+
+const stageByKey = (key) => STAGES.find(s => s.key === key) || STAGES[0];
+const nextStageKey = (currentKey) => {
+  const cur = stageByKey(currentKey);
+  const next = STAGES.find(s => s.order === cur.order + 1);
+  return next ? next.key : currentKey;
+};
+
+// ---- 4 KRITERIA APPROVAL (untuk Analisa PSDM) ----
+const APPROVAL_CRITERIA = [
+  { key: 'kompetensi',  label: 'Kesesuaian materi dengan peningkatan kompetensi pegawai' },
+  { key: 'rtl',         label: 'Kejelasan rencana tindak lanjut pasca pelatihan' },
+  { key: 'narasumber',  label: 'Kualitas susunan acara dan narasumber/fasilitator' },
+  { key: 'biaya',       label: 'Kewajaran lokasi dan biaya pelatihan' },
+];
+
+// ---- DIVISI / UNIT KERJA ----
+const DIVISIONS = [
+  'Divisi Pengembangan SDM',
+  'Divisi Keuangan',
+  'Divisi Investasi Surat Berharga',
+  'Divisi Investasi Langsung',
+  'Divisi Akuntansi & Pelaporan',
+  'Divisi Hukum & Kepatuhan',
+  'Divisi Risiko & Audit Internal',
+  'Divisi Teknologi Informasi',
+  'Divisi Layanan Jemaah & Mitra',
+  'Divisi Sekretariat',
+];
+
+// =====================================================================
+// MOCK DATA (initial seed)
+// =====================================================================
+
+const seedEmployees = [
+  { id: 'E001', nip: '199001012015011001', nama: 'Ahmad Hidayat',    jabatan: 'Anggota BP Bidang SDM',   role: ROLES.DEPUTI,          divisi: 'Sekretariat BP',              email: 'ahmad.h@bpkh.go.id',      status: 'aktif' },
+  { id: 'E002', nip: '198507122012012005', nama: 'Sri Wahyuni',      jabatan: 'Kadiv Pengembangan SDM',  role: ROLES.KADIV_PSDM,      divisi: 'Divisi Pengembangan SDM',     email: 'sri.w@bpkh.go.id',        status: 'aktif' },
+  { id: 'E003', nip: '198803152014031002', nama: 'Budi Santoso',     jabatan: 'Pelaksana PSDM Senior',   role: ROLES.PELAKSANA_PSDM,  divisi: 'Divisi Pengembangan SDM',     email: 'budi.s@bpkh.go.id',       status: 'aktif' },
+  { id: 'E004', nip: '198209052010012003', nama: 'Dewi Lestari',     jabatan: 'Kadiv Keuangan',          role: ROLES.KADIV,           divisi: 'Divisi Keuangan',             email: 'dewi.l@bpkh.go.id',       status: 'aktif' },
+  { id: 'E005', nip: '199112282016011004', nama: 'Rizky Pratama',    jabatan: 'Analis Keuangan Madya',   role: ROLES.PEGAWAI,         divisi: 'Divisi Keuangan',             email: 'rizky.p@bpkh.go.id',      status: 'aktif' },
+  { id: 'E006', nip: '199406172017012006', nama: 'Anita Kusuma',     jabatan: 'Analis Investasi',        role: ROLES.PEGAWAI,         divisi: 'Divisi Investasi Surat Berharga', email: 'anita.k@bpkh.go.id',  status: 'aktif' },
+  { id: 'E007', nip: '198706302013011007', nama: 'Hendra Wijaya',    jabatan: 'Kadiv Investasi',         role: ROLES.KADIV,           divisi: 'Divisi Investasi Surat Berharga', email: 'hendra.w@bpkh.go.id', status: 'aktif' },
+  { id: 'E008', nip: '199309112018012008', nama: 'Putri Maharani',   jabatan: 'Auditor Internal',        role: ROLES.PEGAWAI,         divisi: 'Divisi Risiko & Audit Internal', email: 'putri.m@bpkh.go.id',   status: 'aktif' },
+  { id: 'E009', nip: '198001012005011009', nama: 'MS Hadianto',      jabatan: 'Admin Sistem',            role: ROLES.ADMIN,           divisi: 'Divisi Teknologi Informasi',  email: 'admin@bpkh.go.id',         status: 'aktif' },
+  { id: 'E010', nip: '199510202019012010', nama: 'Farhan Nugroho',   jabatan: 'Staf Hukum',              role: ROLES.PEGAWAI,         divisi: 'Divisi Hukum & Kepatuhan',    email: 'farhan.n@bpkh.go.id',     status: 'aktif' },
+];
+
+const seedTrainingCatalog = [
+  { id: 'T001', judul: 'Audit Berbasis Risiko untuk Lembaga Keuangan',        kategori: 'K3', penyelenggara: 'IIA Indonesia',          jenis: 'eksternal', durasiHari: 3, biayaEstimasi: 7500000,  status: 'aktif' },
+  { id: 'T002', judul: 'Leadership Development Program — Tier 2',             kategori: 'K4', penyelenggara: 'PPM Manajemen',          jenis: 'eksternal', durasiHari: 5, biayaEstimasi: 18000000, status: 'aktif' },
+  { id: 'T003', judul: 'Budaya Kerja BPKH & Implementasi Core Values',        kategori: 'K1', penyelenggara: 'Internal BPKH',          jenis: 'inhouse',   durasiHari: 2, biayaEstimasi: 0,        status: 'aktif' },
+  { id: 'T004', judul: 'Manajemen Investasi Sukuk dan Surat Berharga Syariah',kategori: 'K3', penyelenggara: 'OJK Institute',          jenis: 'eksternal', durasiHari: 4, biayaEstimasi: 12000000, status: 'aktif' },
+  { id: 'T005', judul: 'Public Speaking & Komunikasi Efektif',                kategori: 'K2', penyelenggara: 'Talents Mapping',        jenis: 'eksternal', durasiHari: 2, biayaEstimasi: 4500000,  status: 'aktif' },
+  { id: 'T006', judul: 'Certified Information Systems Auditor (CISA) Prep',   kategori: 'K5', penyelenggara: 'ISACA Indonesia',        jenis: 'mandiri',   durasiHari: 10, biayaEstimasi: 15000000, status: 'aktif' },
+  { id: 'T007', judul: 'Knowledge Management Fundamentals',                   kategori: 'K2', penyelenggara: 'Internal BPKH',          jenis: 'inhouse',   durasiHari: 1, biayaEstimasi: 0,        status: 'aktif' },
+  { id: 'T008', judul: 'PSAK Terkini & Konvergensi IFRS',                     kategori: 'K3', penyelenggara: 'IAI',                    jenis: 'eksternal', durasiHari: 3, biayaEstimasi: 8000000,  status: 'aktif' },
+  // Histori (kategori dikategorikan, namun status arsip)
+  { id: 'T101', judul: 'Pelatihan Excel Lanjut untuk Analis Keuangan',        kategori: 'K2', penyelenggara: 'Dunia Belajar',          jenis: 'eksternal', durasiHari: 2, biayaEstimasi: 3500000,  status: 'arsip' },
+  { id: 'T102', judul: 'Risk Management Workshop 2024',                       kategori: 'K3', penyelenggara: 'Internal BPKH',          jenis: 'inhouse',   durasiHari: 2, biayaEstimasi: 0,        status: 'arsip' },
+];
+
+const seedProposals = [
   {
-    section: 'Utama',
-    items: [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'pengajuan', label: 'Pengajuan Pelatihan', icon: Send, badgeKey: 'pendingPengajuan' },
-      { id: 'pegawai', label: 'Pegawai', icon: Users },
+    id: 'P-2026-0001',
+    pengajuId: 'E005',
+    judul: 'Audit Berbasis Risiko untuk Lembaga Keuangan',
+    kategori: 'K3',
+    refTrainingId: 'T001',
+    penyelenggara: 'IIA Indonesia',
+    tanggalMulai: '2026-07-15',
+    tanggalSelesai: '2026-07-17',
+    durasiHari: 3,
+    lokasi: 'Hotel Borobudur, Jakarta',
+    peserta: [{ id: 'E005', nama: 'Rizky Pratama', jabatan: 'Analis Keuangan Madya' }],
+    manfaatBPKH: 'Penguatan kapabilitas audit internal berbasis risiko untuk fungsi pengelolaan keuangan haji.',
+    manfaatPegawai: 'Sertifikasi & peningkatan kompetensi pemeriksaan berbasis risiko.',
+    rtl: [
+      { kegiatan: 'Sharing knowledge ke tim Keuangan', waktu: '2 minggu pasca pelatihan', hasil: 'Tim memahami konsep RBA' },
+      { kegiatan: 'Pilot project audit internal divisi', waktu: 'Q3 2026', hasil: 'Laporan pilot audit selesai' },
+    ],
+    biayaTuition: 7500000, biayaTiket: 0, biayaPenginapan: 0, biayaTaksi: 0, biayaUangSaku: 600000,
+    totalBiaya: 8100000,
+    stage: 'approved_kadiv',
+    history: [
+      { stage: 'draft',          by: 'E005', at: '2026-05-20 09:00', note: 'Dibuat' },
+      { stage: 'submitted',      by: 'E005', at: '2026-05-20 11:30', note: 'Diajukan' },
+      { stage: 'approved_kadiv', by: 'E004', at: '2026-05-21 14:15', note: 'Disetujui, lanjut ke Deputi' },
     ],
   },
   {
-    section: 'Knowledge Management',
-    items: [
-      { id: 'km-sme', label: 'SME Development', icon: Award },
-      { id: 'km-map', label: 'Knowledge Map', icon: Map },
-      { id: 'km-cop', label: 'Community of Practice', icon: Network },
-      { id: 'km-asset', label: 'Knowledge Asset', icon: Database },
-      { id: 'km-paths', label: 'Learning Paths', icon: Route },
-      { id: 'km-skill', label: 'Skill Matrix', icon: Target },
-      { id: 'km-qa', label: 'Ask the Expert', icon: HelpCircle, badgeKey: 'openQuestions' },
-      { id: 'km-analytics', label: 'KM Analytics', icon: BarChart3 },
+    id: 'P-2026-0002',
+    pengajuId: 'E006',
+    judul: 'Manajemen Investasi Sukuk dan Surat Berharga Syariah',
+    kategori: 'K3',
+    refTrainingId: 'T004',
+    penyelenggara: 'OJK Institute',
+    tanggalMulai: '2026-06-10',
+    tanggalSelesai: '2026-06-13',
+    durasiHari: 4,
+    lokasi: 'OJK Institute, Bogor',
+    peserta: [{ id: 'E006', nama: 'Anita Kusuma', jabatan: 'Analis Investasi' }],
+    manfaatBPKH: 'Optimalisasi alokasi investasi sukuk korporasi & negara.',
+    manfaatPegawai: 'Pemahaman analisis instrumen syariah jangka panjang.',
+    rtl: [
+      { kegiatan: 'Review portofolio sukuk eksisting', waktu: '1 bulan', hasil: 'Rekomendasi rebalancing' },
     ],
-  },
-  {
-    section: 'Talent Management',
-    items: [
-      { id: 'tms-overview', label: 'TMS Overview', icon: Target },
-      { id: 'tms-9box', label: '9-Box Mapping', icon: Grid3x3 },
-      { id: 'tms-pool', label: 'Talent Pool', icon: Star },
-      { id: 'tms-succession', label: 'Succession Plan', icon: Replace },
-      { id: 'tms-promosi', label: 'Promosi', icon: ArrowUpRight },
-    ],
-  },
-  {
-    section: 'Sistem',
-    items: [
-      { id: 'settings', label: 'Pengaturan', icon: SettingsIcon },
+    biayaTuition: 12000000, biayaTiket: 0, biayaPenginapan: 1500000, biayaTaksi: 200000, biayaUangSaku: 800000,
+    totalBiaya: 14500000,
+    stage: 'analyzing_psdm',
+    history: [
+      { stage: 'draft',           by: 'E006', at: '2026-05-15 10:00', note: 'Dibuat' },
+      { stage: 'submitted',       by: 'E006', at: '2026-05-15 13:00', note: 'Diajukan' },
+      { stage: 'approved_kadiv',  by: 'E007', at: '2026-05-16 09:00', note: 'Disetujui' },
+      { stage: 'approved_deputi', by: 'E001', at: '2026-05-18 11:00', note: 'Disetujui Deputi' },
     ],
   },
 ];
 
-const DIVISI_LIST = [
-  'Audit Internal', 'Investasi', 'IT & Digital', 'Kepatuhan', 'SDM',
-  'Sekretariat', 'Pelayanan Haji', 'Keuangan', 'Hukum', 'Komite Audit',
+const seedReports = [];
+const seedEvaluations = [];
+
+const seedSME = [
+  { id: 'SME001', employeeId: 'E003', bidang: 'Manajemen Pelatihan', level: 'Senior', sertifikasi: 'TLDP, MTT', sponsor: 'E002' },
+  { id: 'SME002', employeeId: 'E007', bidang: 'Investasi Syariah',   level: 'Expert', sertifikasi: 'WPPE, CSP',  sponsor: 'E001' },
 ];
 
-const JENIS_PELATIHAN = ['Internal', 'Eksternal', 'Sertifikasi', 'Workshop', 'Konferensi'];
-
-const PENGAJUAN_STATUS = {
-  draft: { label: 'Draft', color: 'bg-slate-100 text-slate-700' },
-  pending: { label: 'Menunggu Approval', color: 'bg-amber-100 text-amber-800' },
-  review: { label: 'Review HR', color: 'bg-blue-100 text-blue-800' },
-  approved: { label: 'Disetujui', color: 'bg-emerald-100 text-emerald-800' },
-  rejected: { label: 'Ditolak', color: 'bg-rose-100 text-rose-800' },
-  completed: { label: 'Selesai', color: 'bg-violet-100 text-violet-800' },
-};
-
-const SME_LEVEL = {
-  expert: { label: 'Expert', dots: 5, color: 'bg-violet-600' },
-  senior: { label: 'Senior', dots: 4, color: 'bg-violet-500' },
-  mid: { label: 'Mid', dots: 3, color: 'bg-violet-400' },
-  junior: { label: 'Junior', dots: 2, color: 'bg-violet-300' },
-};
-
-const KM_DOMAINS = [
-  'Audit Internal', 'GRC', 'Investasi Syariah', 'Pengelolaan Haji',
-  'IT & Cybersecurity', 'Risk Management', 'Compliance', 'Sukuk',
+const seedKnowledgeAssets = [
+  { id: 'KA001', judul: 'Pedoman Audit Berbasis Risiko BPKH',   tipe: 'Pedoman',     pemilik: 'Divisi RAI',         tahun: 2025 },
+  { id: 'KA002', judul: 'Best Practice Pengelolaan Sukuk Haji', tipe: 'Best Practice', pemilik: 'Divisi Investasi', tahun: 2024 },
 ];
 
-const ASSET_TYPES = {
-  sop: { label: 'SOP', icon: FileText, color: 'text-blue-600 bg-blue-50' },
-  pedoman: { label: 'Pedoman', icon: BookOpen, color: 'text-emerald-600 bg-emerald-50' },
-  template: { label: 'Template', icon: Layers, color: 'text-violet-600 bg-violet-50' },
-  video: { label: 'Video', icon: Video, color: 'text-rose-600 bg-rose-50' },
-  case: { label: 'Case Study', icon: ClipboardCheck, color: 'text-amber-600 bg-amber-50' },
-  lesson: { label: 'Lesson Learned', icon: Sparkles, color: 'text-cyan-600 bg-cyan-50' },
+const seedCoP = [
+  { id: 'COP001', nama: 'CoP Audit Internal',     anggota: 12, sponsor: 'E001', status: 'aktif',    engagement: 78 },
+  { id: 'COP002', nama: 'CoP Investasi Syariah',  anggota: 18, sponsor: 'E001', status: 'aktif',    engagement: 85 },
+  { id: 'COP003', nama: 'CoP Tata Kelola SDM',    anggota: 9,  sponsor: 'E002', status: 'revitalisasi', engagement: 45 },
+];
+
+// =====================================================================
+// STORAGE HOOKS (localStorage-based)
+// =====================================================================
+
+const STORAGE_PREFIX = 'kmls_v2_';
+const STORAGE_KEYS = {
+  EMPLOYEES:        STORAGE_PREFIX + 'employees',
+  TRAININGS:        STORAGE_PREFIX + 'trainings',
+  PROPOSALS:        STORAGE_PREFIX + 'proposals',
+  REPORTS:          STORAGE_PREFIX + 'reports',
+  EVALUATIONS:      STORAGE_PREFIX + 'evaluations',
+  SME:              STORAGE_PREFIX + 'sme',
+  KNOWLEDGE_ASSETS: STORAGE_PREFIX + 'knowledge_assets',
+  COP:              STORAGE_PREFIX + 'cop',
+  SESSION:          STORAGE_PREFIX + 'session',
 };
 
-const ASSET_STATUS = {
-  draft:     { label: 'Draft',     color: 'bg-slate-100 text-slate-700',       icon: Edit3 },
-  review:    { label: 'In Review', color: 'bg-amber-100 text-amber-800',       icon: Clock },
-  published: { label: 'Published', color: 'bg-emerald-100 text-emerald-800',   icon: CheckCircle },
-  archived:  { label: 'Archived',  color: 'bg-slate-200 text-slate-600',       icon: Archive },
-};
-
-const COMPETENCY_LEVELS = {
-  0: { label: 'None',         color: 'bg-slate-100 text-slate-500' },
-  1: { label: 'Foundational', color: 'bg-blue-100 text-blue-700' },
-  2: { label: 'Intermediate', color: 'bg-violet-100 text-violet-700' },
-  3: { label: 'Advanced',     color: 'bg-emerald-100 text-emerald-700' },
-  4: { label: 'Expert',       color: 'bg-amber-100 text-amber-800' },
-};
-
-const QUESTION_STATUS = {
-  open:      { label: 'Open',         color: 'bg-amber-100 text-amber-800' },
-  answered:  { label: 'Answered',     color: 'bg-blue-100 text-blue-800' },
-  resolved:  { label: 'Resolved',     color: 'bg-emerald-100 text-emerald-800' },
-};
-
-// =================================================================================
-// SEED DATA
-// =================================================================================
-
-const SEED_DATA = {
-  meta: { initialized: true, version: APP_VERSION, createdAt: new Date().toISOString() },
-  pegawai: [
-    { id: 'p001', nama: 'Sopian Hadianto', nip: '198501012010', jabatan: 'Anggota Komite Audit', divisi: 'Komite Audit', performance: 4.5, kompetensi: 4.6, joinDate: '2023-01-15', email: 'sopian@bpkh.go.id' },
-    { id: 'p002', nama: 'Rojikin', nip: '197503152008', jabatan: 'Ketua Komite Audit', divisi: 'Komite Audit', performance: 4.7, kompetensi: 4.8, joinDate: '2020-01-15', email: 'rojikin@bpkh.go.id' },
-    { id: 'p003', nama: 'Firmansyah N. Nazaroedin', nip: '197005182006', jabatan: 'Ketua Dewan Pengawas', divisi: 'Komite Audit', performance: 4.6, kompetensi: 4.5, joinDate: '2019-06-10', email: 'firman@bpkh.go.id' },
-    { id: 'p004', nama: 'Rina Septiani', nip: '198803202012', jabatan: 'Analis Investasi Senior', divisi: 'Investasi', performance: 4.3, kompetensi: 4.2, joinDate: '2021-03-22', email: 'rina@bpkh.go.id' },
-    { id: 'p005', nama: 'Ahmad Fauzi', nip: '199001102015', jabatan: 'IT Security Lead', divisi: 'IT & Digital', performance: 4.0, kompetensi: 4.1, joinDate: '2022-07-01', email: 'ahmad@bpkh.go.id' },
-    { id: 'p006', nama: 'Budi Santoso', nip: '198706142011', jabatan: 'Auditor Madya', divisi: 'Audit Internal', performance: 3.8, kompetensi: 3.9, joinDate: '2020-11-15', email: 'budi@bpkh.go.id' },
-    { id: 'p007', nama: 'Siti Rahayu', nip: '199203052017', jabatan: 'Auditor Muda', divisi: 'Audit Internal', performance: 3.6, kompetensi: 4.0, joinDate: '2023-02-01', email: 'siti@bpkh.go.id' },
-    { id: 'p008', nama: 'Andri Tanjung', nip: '198912122013', jabatan: 'Compliance Officer', divisi: 'Kepatuhan', performance: 4.1, kompetensi: 3.7, joinDate: '2021-09-12', email: 'andri@bpkh.go.id' },
-    { id: 'p009', nama: 'Dewi Lestari', nip: '199104282016', jabatan: 'Staf SDM', divisi: 'SDM', performance: 3.5, kompetensi: 3.4, joinDate: '2022-04-18', email: 'dewi@bpkh.go.id' },
-    { id: 'p010', nama: 'Hendra Wijaya', nip: '198508302009', jabatan: 'Sekretaris', divisi: 'Sekretariat', performance: 3.2, kompetensi: 2.9, joinDate: '2019-08-30', email: 'hendra@bpkh.go.id' },
-    { id: 'p011', nama: 'Maya Putri', nip: '199407152018', jabatan: 'Analis Keuangan', divisi: 'Keuangan', performance: 4.4, kompetensi: 4.0, joinDate: '2022-10-05', email: 'maya@bpkh.go.id' },
-    { id: 'p012', nama: 'Reza Pratama', nip: '199210082016', jabatan: 'Legal Officer', divisi: 'Hukum', performance: 3.9, kompetensi: 4.2, joinDate: '2023-03-20', email: 'reza@bpkh.go.id' },
-  ],
-  pengajuan: [
-    { id: 'pg001', pegawaiId: 'p005', judul: 'Sertifikasi CISA 2025', jenis: 'Sertifikasi', tanggalMulai: '2025-06-12', tanggalSelesai: '2025-06-15', biaya: 15000000, penyelenggara: 'ISACA Indonesia', status: 'pending', alasan: 'Penguatan kompetensi audit IT', createdAt: '2025-05-20' },
-    { id: 'pg002', pegawaiId: 'p004', judul: 'Workshop Manajemen Risiko Syariah', jenis: 'Workshop', tanggalMulai: '2025-06-05', tanggalSelesai: '2025-06-06', biaya: 5000000, penyelenggara: 'IBI', status: 'approved', alasan: 'Update tools manajemen risiko investasi', createdAt: '2025-05-15' },
-    { id: 'pg003', pegawaiId: 'p008', judul: 'Pelatihan APU-PPT PPATK', jenis: 'Eksternal', tanggalMulai: '2025-05-28', tanggalSelesai: '2025-05-30', biaya: 7500000, penyelenggara: 'PPATK', status: 'approved', alasan: 'Kewajiban kepatuhan tahunan', createdAt: '2025-05-10' },
-    { id: 'pg004', pegawaiId: 'p007', judul: 'Training Audit Berbasis Risiko', jenis: 'Internal', tanggalMulai: '2025-06-20', tanggalSelesai: '2025-06-21', biaya: 2000000, penyelenggara: 'BPKH Internal', status: 'review', alasan: 'Pengembangan auditor muda', createdAt: '2025-05-22' },
-    { id: 'pg005', pegawaiId: 'p006', judul: 'In-house Audit Syariah', jenis: 'Internal', tanggalMulai: '2025-05-20', tanggalSelesai: '2025-05-21', biaya: 1500000, penyelenggara: 'BPKH Internal', status: 'rejected', alasan: 'Sudah pernah ikut tahun lalu', createdAt: '2025-05-05' },
-    { id: 'pg006', pegawaiId: 'p004', judul: 'Sertifikasi WMI', jenis: 'Sertifikasi', tanggalMulai: '2025-04-10', tanggalSelesai: '2025-04-12', biaya: 8000000, penyelenggara: 'WMI Institute', status: 'completed', alasan: 'Penguatan portfolio analyst', createdAt: '2025-03-20' },
-  ],
-  sme: [
-    { id: 'sme001', pegawaiId: 'p001', domain: 'GRC, Audit Internal', level: 'expert', sertifikasi: ['CACP', 'CCFA', 'QIA', 'GRCP'], kontribusi: 24 },
-    { id: 'sme002', pegawaiId: 'p002', domain: 'Audit Komite, Governance', level: 'expert', sertifikasi: ['CIA', 'QIA'], kontribusi: 32 },
-    { id: 'sme003', pegawaiId: 'p003', domain: 'Pengawasan, Risk Management', level: 'senior', sertifikasi: ['CRMP'], kontribusi: 18 },
-    { id: 'sme004', pegawaiId: 'p004', domain: 'Investasi Syariah, Sukuk', level: 'senior', sertifikasi: ['WMI', 'CFP'], kontribusi: 21 },
-    { id: 'sme005', pegawaiId: 'p005', domain: 'IT Audit, Cybersecurity', level: 'mid', sertifikasi: ['CEH'], kontribusi: 12 },
-    { id: 'sme006', pegawaiId: 'p008', domain: 'Compliance, APU-PPT', level: 'mid', sertifikasi: ['CAMS'], kontribusi: 9 },
-  ],
-  knowledgeAsset: [
-    { id: 'ka001', judul: 'Pedoman Audit Berbasis Risiko v2.0', type: 'pedoman', tags: ['Audit', 'Risk'], owner: 'p002', views: 142, createdAt: '2025-03-15', status: 'published', version: '2.0', reviewDate: '2026-03-15', description: 'Pedoman lengkap pelaksanaan audit berbasis risiko di lingkungan BPKH, mengacu pada IPPF 2024.', ratingsUp: 18, ratingsDown: 1, lastViewedAt: '2025-05-17', comments: [{ id: 'c1', userId: 'p006', text: 'Sangat membantu untuk penyusunan kertas kerja audit kuartalan.', createdAt: '2025-04-20' }] },
-    { id: 'ka002', judul: 'SOP Pengajuan Pelatihan v3.1', type: 'sop', tags: ['SDM', 'Procurement'], owner: 'p009', views: 98, createdAt: '2025-04-01', status: 'published', version: '3.1', reviewDate: '2026-04-01', description: 'Standar operasional pengajuan, approval, sampai laporan pelatihan pegawai BPKH.', ratingsUp: 12, ratingsDown: 0, lastViewedAt: '2025-05-18', comments: [] },
-    { id: 'ka003', judul: 'Case Study: HDC Settlement', type: 'case', tags: ['Investasi', 'Lesson'], owner: 'p004', views: 89, createdAt: '2025-04-12', status: 'published', version: '1.0', reviewDate: '2026-04-12', description: 'Studi kasus settlement Hajj Deposit Center, lengkap dengan timeline, root cause, dan recovery action.', ratingsUp: 15, ratingsDown: 2, lastViewedAt: '2025-05-16', comments: [] },
-    { id: 'ka004', judul: 'Template Kertas Kerja Audit Syariah', type: 'template', tags: ['Audit', 'Syariah'], owner: 'p006', views: 54, createdAt: '2025-02-28', status: 'review', version: '1.2', reviewDate: '2025-08-28', description: 'Template baku kertas kerja audit syariah, mencakup checklist DSN-MUI.', ratingsUp: 7, ratingsDown: 0, lastViewedAt: '2025-05-10', comments: [] },
-    { id: 'ka005', judul: 'Rekaman: KM Session GRC Mei 2025', type: 'video', tags: ['GRC', 'Sharing'], owner: 'p001', views: 67, createdAt: '2025-05-10', status: 'published', version: '1.0', reviewDate: '2026-05-10', description: 'Rekaman knowledge sharing session GRC tematik bulan Mei 2025 oleh Sopian Hadianto.', ratingsUp: 9, ratingsDown: 0, lastViewedAt: '2025-05-17', comments: [] },
-    { id: 'ka006', judul: 'Lesson Learned Audit TPPU 2025', type: 'lesson', tags: ['Audit', 'Compliance'], owner: 'p008', views: 41, createdAt: '2025-04-25', status: 'published', version: '1.0', reviewDate: '2026-04-25', description: 'Pelajaran kunci dari pelaksanaan audit TPPU Q1 2025 dan rekomendasi mitigasi.', ratingsUp: 11, ratingsDown: 1, lastViewedAt: '2025-05-14', comments: [] },
-    { id: 'ka007', judul: 'SOP Pengelolaan Dana Haji', type: 'sop', tags: ['Haji', 'Keuangan'], owner: 'p011', views: 38, createdAt: '2025-03-08', status: 'published', version: '1.5', reviewDate: '2025-09-08', description: 'SOP end-to-end pengelolaan dana haji, dari setoran sampai pembayaran biaya operasional.', ratingsUp: 6, ratingsDown: 0, lastViewedAt: '2025-04-30', comments: [] },
-    { id: 'ka008', judul: 'Best Practice Tata Kelola Haji', type: 'pedoman', tags: ['Haji', 'Governance'], owner: 'p003', views: 33, createdAt: '2025-03-22', status: 'published', version: '1.0', reviewDate: '2026-03-22', description: 'Kompilasi best practice tata kelola penyelenggaraan haji dari berbagai negara mitra.', ratingsUp: 5, ratingsDown: 0, lastViewedAt: '2024-11-12', comments: [] },
-  ],
-  bookmarks: [
-    { id: 'bm001', userId: 'p001', assetId: 'ka001', createdAt: '2025-04-22' },
-    { id: 'bm002', userId: 'p001', assetId: 'ka006', createdAt: '2025-05-02' },
-    { id: 'bm003', userId: 'p002', assetId: 'ka003', createdAt: '2025-04-30' },
-  ],
-  competencies: [
-    { id: 'cmp001', name: 'Audit Berbasis Risiko', domain: 'Audit Internal' },
-    { id: 'cmp002', name: 'Audit Syariah', domain: 'Audit Internal' },
-    { id: 'cmp003', name: 'Manajemen Risiko', domain: 'GRC' },
-    { id: 'cmp004', name: 'Compliance & APU-PPT', domain: 'Compliance' },
-    { id: 'cmp005', name: 'Analisis Investasi Syariah', domain: 'Investasi Syariah' },
-    { id: 'cmp006', name: 'Manajemen Sukuk', domain: 'Sukuk' },
-    { id: 'cmp007', name: 'Cybersecurity', domain: 'IT & Cybersecurity' },
-    { id: 'cmp008', name: 'Data Governance', domain: 'IT & Cybersecurity' },
-    { id: 'cmp009', name: 'Tata Kelola Haji', domain: 'Pengelolaan Haji' },
-    { id: 'cmp010', name: 'Leadership & Coaching', domain: 'Soft Skill' },
-  ],
-  roleRequirements: [
-    { jabatan: 'Anggota Komite Audit',    requirements: [['cmp001',4],['cmp003',3],['cmp004',3],['cmp010',3]] },
-    { jabatan: 'Ketua Komite Audit',      requirements: [['cmp001',4],['cmp003',4],['cmp004',3],['cmp010',4]] },
-    { jabatan: 'Auditor Madya',           requirements: [['cmp001',3],['cmp002',2],['cmp003',2]] },
-    { jabatan: 'Auditor Muda',            requirements: [['cmp001',2],['cmp002',1],['cmp003',1]] },
-    { jabatan: 'Analis Investasi Senior', requirements: [['cmp005',4],['cmp006',3],['cmp003',2]] },
-    { jabatan: 'IT Security Lead',        requirements: [['cmp007',4],['cmp008',3]] },
-    { jabatan: 'Compliance Officer',      requirements: [['cmp004',4],['cmp003',2]] },
-    { jabatan: 'Analis Keuangan',         requirements: [['cmp009',2],['cmp005',2]] },
-  ],
-  pegawaiCompetencies: [
-    { pegawaiId: 'p001', competencyId: 'cmp001', level: 4 },
-    { pegawaiId: 'p001', competencyId: 'cmp003', level: 4 },
-    { pegawaiId: 'p001', competencyId: 'cmp004', level: 3 },
-    { pegawaiId: 'p001', competencyId: 'cmp010', level: 3 },
-    { pegawaiId: 'p002', competencyId: 'cmp001', level: 4 },
-    { pegawaiId: 'p002', competencyId: 'cmp003', level: 3 },
-    { pegawaiId: 'p002', competencyId: 'cmp010', level: 4 },
-    { pegawaiId: 'p004', competencyId: 'cmp005', level: 4 },
-    { pegawaiId: 'p004', competencyId: 'cmp006', level: 3 },
-    { pegawaiId: 'p005', competencyId: 'cmp007', level: 3 },
-    { pegawaiId: 'p005', competencyId: 'cmp008', level: 2 },
-    { pegawaiId: 'p006', competencyId: 'cmp001', level: 2 },
-    { pegawaiId: 'p006', competencyId: 'cmp002', level: 2 },
-    { pegawaiId: 'p007', competencyId: 'cmp001', level: 1 },
-    { pegawaiId: 'p008', competencyId: 'cmp004', level: 3 },
-    { pegawaiId: 'p011', competencyId: 'cmp005', level: 1 },
-    { pegawaiId: 'p011', competencyId: 'cmp009', level: 1 },
-  ],
-  learningPaths: [
-    { id: 'lp001', title: 'Onboarding Auditor BPKH', targetRole: 'Auditor Muda', description: 'Path wajib untuk auditor baru: pemahaman audit berbasis risiko + GRC + syariah dasar.', createdBy: 'p002', steps: [
-      { type: 'asset', refId: 'ka001', title: 'Baca: Pedoman Audit Berbasis Risiko v2.0', estMinutes: 60 },
-      { type: 'asset', refId: 'ka004', title: 'Pelajari: Template Kertas Kerja Audit Syariah', estMinutes: 45 },
-      { type: 'asset', refId: 'ka006', title: 'Review: Lesson Learned Audit TPPU 2025', estMinutes: 30 },
-      { type: 'training', refId: null, title: 'Ikuti: Training Audit Berbasis Risiko', estMinutes: 480 },
-    ]},
-    { id: 'lp002', title: 'Compliance Fundamentals', targetRole: 'Compliance Officer', description: 'Penguatan kompetensi compliance & APU-PPT untuk pegawai Divisi Kepatuhan.', createdBy: 'p008', steps: [
-      { type: 'asset', refId: 'ka006', title: 'Baca: Lesson Learned Audit TPPU 2025', estMinutes: 30 },
-      { type: 'asset', refId: 'ka002', title: 'Pelajari: SOP Pengajuan Pelatihan v3.1', estMinutes: 20 },
-      { type: 'training', refId: null, title: 'Ikuti: Pelatihan APU-PPT PPATK', estMinutes: 1200 },
-    ]},
-    { id: 'lp003', title: 'Investasi Syariah Mastery', targetRole: 'Analis Investasi Senior', description: 'Jalur pengembangan analis investasi: dari case study sampai sertifikasi.', createdBy: 'p004', steps: [
-      { type: 'asset', refId: 'ka003', title: 'Pelajari: Case Study HDC Settlement', estMinutes: 60 },
-      { type: 'training', refId: null, title: 'Ikuti: Workshop Manajemen Risiko Syariah', estMinutes: 720 },
-      { type: 'training', refId: null, title: 'Sertifikasi: WMI', estMinutes: 2400 },
-    ]},
-  ],
-  enrollments: [
-    { id: 'en001', userId: 'p007', pathId: 'lp001', startedAt: '2025-04-01', completedSteps: [0, 1] },
-    { id: 'en002', userId: 'p008', pathId: 'lp002', startedAt: '2025-05-01', completedSteps: [0] },
-    { id: 'en003', userId: 'p011', pathId: 'lp003', startedAt: '2025-05-05', completedSteps: [] },
-  ],
-  questions: [
-    { id: 'q001', askerId: 'p007', title: 'Bagaimana cara memilih sampel audit yang representatif untuk audit syariah?', body: 'Saya sedang mempersiapkan audit syariah pertama saya dan bingung dengan teknik sampling yang tepat untuk transaksi syariah.', domain: 'Audit Internal', status: 'answered', askedAt: '2025-05-10', answers: [
-      { id: 'a001', smeId: 'p006', body: 'Untuk audit syariah, gunakan judgmental sampling pada transaksi material + random sampling pada populasi besar. Referensi: Pedoman Audit Berbasis Risiko v2.0 bab 4.', votes: 5, createdAt: '2025-05-11', promotedToAssetId: null },
-    ]},
-    { id: 'q002', askerId: 'p009', title: 'Dokumen apa saja yang wajib di-attach saat pengajuan sertifikasi external?', body: 'Untuk pegawai yang ingin ambil sertifikasi seperti CISA atau WMI, dokumen apa yang harus disiapkan?', domain: 'SDM', status: 'resolved', askedAt: '2025-04-28', answers: [
-      { id: 'a002', smeId: 'p005', body: 'CV terbaru, bukti pengalaman minimal 2 tahun di area terkait, surat rekomendasi atasan, dan brosur sertifikasi. Detail di SOP Pengajuan Pelatihan v3.1.', votes: 8, createdAt: '2025-04-29', promotedToAssetId: 'ka002' },
-    ]},
-    { id: 'q003', askerId: 'p010', title: 'Apakah ada template laporan risiko investasi haji bulanan?', body: 'Saya cari template laporan risiko investasi yang bisa langsung digunakan.', domain: 'Investasi Syariah', status: 'open', askedAt: '2025-05-17', answers: []},
-  ],
-  cop: [
-    { id: 'cop001', nama: 'CoP Audit & GRC', lead: 'p002', anggota: 32, diskusiPerBulan: 48, engagement: 92, nextEvent: '2025-06-18' },
-    { id: 'cop002', nama: 'CoP Investasi Syariah', lead: 'p004', anggota: 28, diskusiPerBulan: 35, engagement: 75, nextEvent: '2025-06-20' },
-    { id: 'cop003', nama: 'CoP IT & Digital Innovation', lead: 'p005', anggota: 24, diskusiPerBulan: 28, engagement: 68, nextEvent: '2025-06-25' },
-    { id: 'cop004', nama: 'CoP Pelayanan Haji', lead: 'p003', anggota: 19, diskusiPerBulan: 12, engagement: 32, nextEvent: null },
-    { id: 'cop005', nama: 'CoP Kepatuhan & APU-PPT', lead: 'p008', anggota: 16, diskusiPerBulan: 20, engagement: 58, nextEvent: '2025-07-02' },
-  ],
-  succession: [
-    { id: 's001', posisi: 'Kepala Divisi Audit Internal', incumbent: 'p002', kandidat: ['p001', 'p006'], readiness: '1y' },
-    { id: 's002', posisi: 'Kepala Divisi Investasi', incumbent: null, kandidat: ['p004', 'p011'], readiness: '1y' },
-    { id: 's003', posisi: 'Kepala Divisi IT & Digital', incumbent: null, kandidat: ['p005'], readiness: '2y' },
-    { id: 's004', posisi: 'Kepala SPI', incumbent: null, kandidat: ['p001', 'p008'], readiness: '2y' },
-    { id: 's005', posisi: 'Kepala Divisi SDM', incumbent: null, kandidat: [], readiness: '3y' },
-  ],
-  talentPool: [
-    { id: 'tp001', pegawaiId: 'p001', kategori: 'star', notes: 'C-Level successor' },
-    { id: 'tp002', pegawaiId: 'p002', kategori: 'star', notes: 'C-Level successor' },
-    { id: 'tp003', pegawaiId: 'p004', kategori: 'highpot', notes: 'High Potential — Investasi' },
-    { id: 'tp004', pegawaiId: 'p007', kategori: 'future', notes: 'Future Star — Audit' },
-    { id: 'tp005', pegawaiId: 'p005', kategori: 'critical', notes: 'Critical Backup — IT' },
-    { id: 'tp006', pegawaiId: 'p011', kategori: 'highpot', notes: 'High Potential — Keuangan' },
-  ],
-};
-
-// =================================================================================
-// STORAGE LAYER
-// =================================================================================
-
-const Store = {
-  async load() {
+function useLocalStorage(key, defaultValue) {
+  const [value, setValue] = useState(() => {
     try {
-      if (typeof window !== 'undefined' && window.storage) {
-        const result = await window.storage.get(STORAGE_KEY);
-        if (result?.value) {
-          return typeof result.value === 'string' ? JSON.parse(result.value) : result.value;
-        }
-      }
-      if (typeof localStorage !== 'undefined') {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) return JSON.parse(raw);
-      }
-    } catch (e) {
-      console.log('No saved data, using seed');
-    }
-    return null;
-  },
-  async save(data) {
-    try {
-      if (typeof window !== 'undefined' && window.storage) {
-        await window.storage.set(STORAGE_KEY, JSON.stringify(data));
-        return true;
-      }
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        return true;
-      }
-    } catch (e) {
-      console.error('Storage save failed:', e);
-    }
-    return false;
-  },
-  async reset() {
-    try {
-      if (typeof window !== 'undefined' && window.storage) {
-        await window.storage.delete(STORAGE_KEY);
-      }
-      if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-    } catch (e) {}
-  },
-};
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : defaultValue;
+    } catch { return defaultValue; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+  }, [key, value]);
+  return [value, setValue];
+}
 
-// =================================================================================
+// =====================================================================
 // UTILITIES
-// =================================================================================
+// =====================================================================
 
-const formatIDR = (n) => 'Rp ' + Math.round(n).toLocaleString('id-ID');
-const formatDate = (s) => {
-  if (!s) return '-';
-  const d = new Date(s);
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-};
-const initials = (nama) => nama.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
-const uid = (prefix) => `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-const findPegawai = (data, id) => data.pegawai.find(p => p.id === id);
-const findAsset = (data, id) => data.knowledgeAsset.find(a => a.id === id);
-const isBookmarked = (data, userId, assetId) => (data.bookmarks || []).some(b => b.userId === userId && b.assetId === assetId);
-const userBookmarks = (data, userId) => (data.bookmarks || []).filter(b => b.userId === userId);
-
-const daysBetween = (a, b) => Math.round((new Date(a) - new Date(b)) / 86400000);
-const daysUntil = (d) => daysBetween(d, new Date().toISOString());
-const daysSince = (d) => daysBetween(new Date().toISOString(), d);
-
-// Cross-entity relationship lookup for a Knowledge Asset.
-// Heuristic: an asset relates to an SME / CoP if its tags or owner's division
-// overlaps with the SME domain / CoP name. Good enough for prototype-grade KG view.
-const assetRelations = (data, asset) => {
-  const owner = findPegawai(data, asset.owner);
-  const tagsLower = asset.tags.map(t => t.toLowerCase());
-  const matches = (text) => {
-    if (!text) return false;
-    const tl = text.toLowerCase();
-    return tagsLower.some(t => tl.includes(t)) || (owner && tl.includes(owner.divisi.toLowerCase()));
-  };
-  const smes = data.sme.filter(s => matches(s.domain));
-  const cops = data.cop.filter(c => matches(c.nama));
-  const paths = (data.learningPaths || []).filter(p => p.steps.some(st => st.refId === asset.id));
-  return { owner, smes, cops, paths };
+const fmtIDR = (n) => 'Rp ' + (Number(n) || 0).toLocaleString('id-ID');
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+const fmtDateTime = (d) => d ? new Date(d).toLocaleString('id-ID') : '-';
+const cls = (...xs) => xs.filter(Boolean).join(' ');
+const uid = (prefix = 'X') => prefix + Date.now().toString(36).toUpperCase().slice(-6) + Math.random().toString(36).slice(2, 5).toUpperCase();
+const newProposalId = (existing) => {
+  const year = new Date().getFullYear();
+  const seq = existing.filter(p => p.id.startsWith(`P-${year}-`)).length + 1;
+  return `P-${year}-${String(seq).padStart(4, '0')}`;
 };
 
-// =================================================================================
-// UI PRIMITIVES
-// =================================================================================
+// =====================================================================
+// SHARED UI PRIMITIVES
+// =====================================================================
 
-const Card = ({ children, className = '', padding = 'p-5' }) => (
-  <div className={`bg-white rounded-xl border border-slate-200/70 ${padding} ${className}`}>
-    {children}
-  </div>
-);
+function Badge({ children, className = '', as: Tag = 'span' }) {
+  return <Tag className={cls('inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md border', className)}>{children}</Tag>;
+}
 
-const Badge = ({ children, className = 'bg-slate-100 text-slate-700' }) => (
-  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${className}`}>
-    {children}
-  </span>
-);
-
-const Button = ({ children, onClick, variant = 'default', size = 'md', icon: Icon, type = 'button', disabled = false, className = '' }) => {
-  const variants = {
-    primary: 'bg-emerald-700 text-white hover:bg-emerald-800 border-emerald-700',
-    default: 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200',
-    danger: 'bg-rose-600 text-white hover:bg-rose-700 border-rose-600',
-    ghost: 'bg-transparent text-slate-600 hover:bg-slate-100 border-transparent',
-  };
-  const sizes = { sm: 'px-2.5 py-1 text-xs', md: 'px-3 py-1.5 text-sm', lg: 'px-4 py-2 text-sm' };
+function StageBadge({ stageKey }) {
+  const s = stageByKey(stageKey);
+  const Icon = s.icon;
   return (
-    <button type={type} onClick={onClick} disabled={disabled}
-      className={`inline-flex items-center gap-1.5 border rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]} ${className}`}>
-      {Icon && <Icon className="w-4 h-4" />}
+    <Badge className={cls(s.color, 'border-current/10')}>
+      <Icon className="w-3 h-3" />
+      {s.short}
+    </Badge>
+  );
+}
+
+function CategoryBadge({ code }) {
+  const c = CATEGORIES[code];
+  if (!c) return null;
+  return <Badge className={c.color}>{c.short}</Badge>;
+}
+
+function Card({ children, className = '', title, subtitle, action, padded = true }) {
+  return (
+    <div className={cls('bg-white border border-slate-200 rounded-xl shadow-sm', className)}>
+      {(title || action) && (
+        <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-100">
+          <div>
+            {title && <h3 className="text-base font-semibold text-slate-900">{title}</h3>}
+            {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+          </div>
+          {action}
+        </div>
+      )}
+      <div className={padded ? 'p-5' : ''}>{children}</div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, hint, icon: Icon, accent = 'emerald' }) {
+  const accentMap = {
+    emerald: 'from-emerald-500 to-teal-600',
+    blue: 'from-blue-500 to-indigo-600',
+    amber: 'from-amber-500 to-orange-600',
+    rose: 'from-rose-500 to-pink-600',
+    slate: 'from-slate-600 to-slate-800',
+  };
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm relative overflow-hidden">
+      <div className={cls('absolute -top-8 -right-8 w-24 h-24 rounded-full bg-gradient-to-br opacity-10', accentMap[accent])} />
+      <div className="relative">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs uppercase tracking-wide text-slate-500 font-medium">{label}</p>
+          {Icon && <Icon className="w-4 h-4 text-slate-400" />}
+        </div>
+        <p className="text-2xl font-bold text-slate-900">{value}</p>
+        {hint && <p className="text-xs text-slate-500 mt-1">{hint}</p>}
+      </div>
+    </div>
+  );
+}
+
+function Button({ children, variant = 'primary', size = 'md', icon: Icon, className = '', ...props }) {
+  const variants = {
+    primary: 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm',
+    secondary: 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50',
+    danger: 'bg-rose-600 text-white hover:bg-rose-700',
+    ghost: 'text-slate-700 hover:bg-slate-100',
+    dark: 'bg-slate-900 text-white hover:bg-slate-800',
+  };
+  const sizes = { sm: 'px-2.5 py-1.5 text-xs', md: 'px-3.5 py-2 text-sm', lg: 'px-4 py-2.5 text-sm' };
+  return (
+    <button className={cls('inline-flex items-center gap-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed', variants[variant], sizes[size], className)} {...props}>
+      {Icon && <Icon className={size === 'sm' ? 'w-3.5 h-3.5' : 'w-4 h-4'} />}
       {children}
     </button>
   );
-};
+}
 
-const Input = ({ label, error, ...props }) => (
-  <div>
-    {label && <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>}
-    <input {...props}
-      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors" />
-    {error && <p className="text-xs text-rose-600 mt-1">{error}</p>}
-  </div>
-);
+function Input({ label, error, hint, className = '', ...props }) {
+  return (
+    <div className={className}>
+      {label && <label className="block text-xs font-medium text-slate-700 mb-1">{label}</label>}
+      <input className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" {...props} />
+      {hint && <p className="text-xs text-slate-500 mt-1">{hint}</p>}
+      {error && <p className="text-xs text-rose-600 mt-1">{error}</p>}
+    </div>
+  );
+}
 
-const Select = ({ label, options, ...props }) => (
-  <div>
-    {label && <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>}
-    <select {...props}
-      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white">
-      {options.map(opt => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
-      ))}
-    </select>
-  </div>
-);
+function Select({ label, options = [], className = '', ...props }) {
+  return (
+    <div className={className}>
+      {label && <label className="block text-xs font-medium text-slate-700 mb-1">{label}</label>}
+      <select className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" {...props}>
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </div>
+  );
+}
 
-const Textarea = ({ label, ...props }) => (
-  <div>
-    {label && <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>}
-    <textarea {...props} rows={3}
-      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 resize-none" />
-  </div>
-);
+function Textarea({ label, className = '', ...props }) {
+  return (
+    <div className={className}>
+      {label && <label className="block text-xs font-medium text-slate-700 mb-1">{label}</label>}
+      <textarea className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" {...props} />
+    </div>
+  );
+}
 
-const Modal = ({ open, onClose, title, children, size = 'md' }) => {
+function Modal({ open, onClose, title, children, size = 'md', footer }) {
   if (!open) return null;
-  const sizes = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' };
+  const sizes = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl', xl: 'max-w-6xl' };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-      <div className={`bg-white rounded-xl shadow-2xl w-full ${sizes[size]} max-h-[90vh] flex flex-col`}>
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
-          <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
-          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-md text-slate-500">
-            <X className="w-4 h-4" />
-          </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
+      <div className={cls('bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-hidden flex flex-col', sizes[size])} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
         </div>
-        <div className="flex-1 overflow-y-auto">{children}</div>
+        <div className="flex-1 overflow-y-auto p-6">{children}</div>
+        {footer && <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2">{footer}</div>}
       </div>
     </div>
   );
-};
+}
 
-const Avatar = ({ nama, size = 'md', className = '' }) => {
-  const sizes = { xs: 'w-6 h-6 text-[9px]', sm: 'w-8 h-8 text-[10px]', md: 'w-10 h-10 text-xs', lg: 'w-12 h-12 text-sm' };
+function EmptyState({ icon: Icon = FolderOpen, title, hint, action }) {
   return (
-    <div className={`${sizes[size]} rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-semibold flex-shrink-0 ${className}`}>
-      {initials(nama)}
-    </div>
-  );
-};
-
-const Tabs = ({ tabs, active, onChange }) => (
-  <div className="flex items-center gap-1 border-b border-slate-200 -mx-5 px-5">
-    {tabs.map(t => (
-      <button key={t.id} onClick={() => onChange(t.id)}
-        className={`px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors ${
-          active === t.id ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'
-        }`}>
-        {t.label}{typeof t.count === 'number' && <span className="ml-1 text-slate-400">({t.count})</span>}
-      </button>
-    ))}
-  </div>
-);
-
-const Rating = ({ up, down, onUp, onDown, compact = false }) => (
-  <div className={`inline-flex items-center gap-1 ${compact ? 'text-[11px]' : 'text-xs'}`}>
-    <button onClick={onUp} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-emerald-50 text-slate-600 hover:text-emerald-700">
-      <ThumbsUp className="w-3.5 h-3.5" />{up}
-    </button>
-    <button onClick={onDown} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-rose-50 text-slate-600 hover:text-rose-600">
-      <ThumbsDown className="w-3.5 h-3.5" />{down}
-    </button>
-  </div>
-);
-
-const BookmarkBtn = ({ active, onToggle }) => (
-  <button onClick={onToggle} title={active ? 'Hapus bookmark' : 'Bookmark'}
-    className={`p-1.5 rounded-md ${active ? 'text-amber-600 bg-amber-50' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'}`}>
-    <Bookmark className="w-4 h-4" fill={active ? 'currentColor' : 'none'} />
-  </button>
-);
-
-const ProgressBar = ({ value, color = 'emerald' }) => {
-  const colors = { emerald: 'bg-emerald-500', amber: 'bg-amber-500', rose: 'bg-rose-500', blue: 'bg-blue-500', violet: 'bg-violet-500' };
-  const pct = Math.max(0, Math.min(100, value));
-  return (
-    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-      <div className={`h-full rounded-full transition-all ${colors[color] || colors.emerald}`} style={{ width: `${pct}%` }} />
-    </div>
-  );
-};
-
-const StatusBadge = ({ status, map }) => {
-  const s = map[status] || { label: status, color: 'bg-slate-100 text-slate-600', icon: null };
-  const Icon = s.icon;
-  return (
-    <Badge className={s.color}>
-      {Icon && <Icon className="w-3 h-3" />}{s.label}
-    </Badge>
-  );
-};
-
-const Toast = ({ message, type = 'success' }) => {
-  if (!message) return null;
-  const types = {
-    success: 'bg-emerald-700',
-    error: 'bg-rose-600',
-    info: 'bg-slate-700',
-  };
-  const Icon = type === 'success' ? CheckCircle : type === 'error' ? XCircle : AlertCircle;
-  return (
-    <div className={`fixed bottom-6 right-6 z-[60] ${types[type]} text-white px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2 text-sm animate-slide-up`}>
-      <Icon className="w-4 h-4" />
-      {message}
-    </div>
-  );
-};
-
-const EmptyState = ({ icon: Icon, title, description, action }) => (
-  <div className="text-center py-12 px-4">
-    <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-      <Icon className="w-7 h-7 text-slate-400" />
-    </div>
-    <p className="text-sm font-medium text-slate-700">{title}</p>
-    <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">{description}</p>
-    {action && <div className="mt-4">{action}</div>}
-  </div>
-);
-
-const StatCard = ({ label, value, unit, icon: Icon, color = 'emerald', delta, deltaColor = 'emerald' }) => {
-  const colorMap = {
-    emerald: 'text-emerald-700 bg-emerald-50',
-    amber: 'text-amber-700 bg-amber-50',
-    blue: 'text-blue-700 bg-blue-50',
-    violet: 'text-violet-700 bg-violet-50',
-    rose: 'text-rose-700 bg-rose-50',
-  };
-  const deltaColors = { emerald: 'text-emerald-600', amber: 'text-amber-600', rose: 'text-rose-600' };
-  return (
-    <Card padding="p-4">
-      <div className="flex items-start justify-between mb-2">
-        <span className="text-xs text-slate-500">{label}</span>
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${colorMap[color]}`}>
-          <Icon className="w-4 h-4" />
-        </div>
+    <div className="text-center py-12 px-4">
+      <div className="inline-flex p-3 rounded-full bg-slate-100 mb-3">
+        <Icon className="w-6 h-6 text-slate-400" />
       </div>
-      <div className="flex items-baseline gap-1">
-        <span className="text-2xl font-semibold text-slate-800">{value}</span>
-        {unit && <span className="text-xs text-slate-500">{unit}</span>}
-      </div>
-      {delta && (
-        <div className={`text-[11px] mt-1 flex items-center gap-1 ${deltaColors[deltaColor]}`}>
-          <TrendingUp className="w-3 h-3" />
-          {delta}
-        </div>
-      )}
-    </Card>
-  );
-};
-
-// =================================================================================
-// LAYOUT
-// =================================================================================
-
-const Sidebar = ({ active, onChange, counts, collapsed, onToggle }) => (
-  <aside className={`${collapsed ? 'w-16' : 'w-56'} bg-emerald-800 flex flex-col flex-shrink-0 transition-all duration-200`}>
-    <div className="px-3 py-4 border-b border-emerald-700/50 flex items-center gap-2">
-      <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0">
-        <GraduationCap className="w-4 h-4 text-white" />
-      </div>
-      {!collapsed && (
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-white leading-tight">KMLS</div>
-          <div className="text-[10px] text-white/60 truncate">BPKH Learning Suite</div>
-        </div>
-      )}
-      <button onClick={onToggle} className="p-1 hover:bg-white/10 rounded text-white/60 hover:text-white">
-        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-      </button>
+      <p className="text-sm font-medium text-slate-700">{title}</p>
+      {hint && <p className="text-xs text-slate-500 mt-1">{hint}</p>}
+      {action && <div className="mt-4">{action}</div>}
     </div>
-    <nav className="flex-1 overflow-y-auto py-2 px-2">
-      {NAV_STRUCTURE.map(section => (
-        <div key={section.section} className="mb-3">
-          {!collapsed && (
-            <div className="text-[9px] font-semibold text-white/40 uppercase tracking-wider px-2 mb-1">
-              {section.section}
+  );
+}
+
+// =====================================================================
+// LOGIN SCREEN
+// =====================================================================
+
+function LoginScreen({ employees, onLogin }) {
+  const [selectedId, setSelectedId] = useState(employees[0]?.id || '');
+  const emp = employees.find(e => e.id === selectedId);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-900 to-teal-900 flex items-center justify-center p-6">
+      <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+      <div className="relative w-full max-w-4xl grid lg:grid-cols-2 gap-8 items-center">
+        {/* Brand panel */}
+        <div className="text-white">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+              <Brain className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold tracking-tight">{APP_NAME}</div>
+              <div className="text-xs text-emerald-200">{APP_FULL_NAME}</div>
+            </div>
+          </div>
+          <h1 className="text-4xl lg:text-5xl font-bold leading-tight mb-4">
+            Sistem Terpadu<br/>
+            <span className="bg-gradient-to-r from-emerald-300 to-teal-200 bg-clip-text text-transparent">Pelatihan, KM &amp; Talent</span>
+          </h1>
+          <p className="text-emerald-100/80 text-sm leading-relaxed max-w-md">
+            Pengelolaan end-to-end pelatihan pegawai BPKH, terintegrasi dengan 4 pilar Knowledge Management dan Talent Management 3-stage. Sesuai Prosedur Tetap Manajemen Pengetahuan BPKH.
+          </p>
+          <div className="mt-8 grid grid-cols-3 gap-3 max-w-md">
+            {[
+              { icon: GraduationCap, label: '10-Step Approval' },
+              { icon: Brain,         label: '4 Pilar KM' },
+              { icon: Target,        label: 'TMS 3-Stage' },
+            ].map((f, i) => (
+              <div key={i} className="bg-white/10 backdrop-blur rounded-xl p-3 border border-white/10">
+                <f.icon className="w-5 h-5 text-emerald-300 mb-2" />
+                <div className="text-xs font-medium">{f.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Login panel */}
+        <div className="bg-white rounded-3xl shadow-2xl p-8">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-slate-900">Masuk ke Sistem</h2>
+            <p className="text-sm text-slate-500 mt-1">Mock login — pilih pegawai untuk simulasi peran</p>
+          </div>
+
+          <label className="block text-xs font-medium text-slate-700 mb-1.5">Pilih Pegawai (Role akan otomatis)</label>
+          <select
+            value={selectedId}
+            onChange={(e) => setSelectedId(e.target.value)}
+            className="w-full px-3 py-2.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            {employees.map(e => (
+              <option key={e.id} value={e.id}>
+                {e.nama} — {ROLE_META[e.role]?.short}
+              </option>
+            ))}
+          </select>
+
+          {emp && (
+            <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="flex items-start gap-3">
+                <div className={cls('w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold', 'bg-gradient-to-br from-emerald-500 to-teal-600')}>
+                  {emp.nama.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-slate-900 truncate">{emp.nama}</p>
+                  <p className="text-xs text-slate-600 truncate">{emp.jabatan}</p>
+                  <p className="text-xs text-slate-500 truncate mt-0.5">{emp.divisi}</p>
+                  <Badge className={cls('mt-2', ROLE_META[emp.role]?.color)}>
+                    {React.createElement(ROLE_META[emp.role]?.icon || User, { className: 'w-3 h-3' })}
+                    {ROLE_META[emp.role]?.label}
+                  </Badge>
+                </div>
+              </div>
             </div>
           )}
-          {section.items.map(item => {
-            const Icon = item.icon;
-            const isActive = active === item.id;
-            const badge = item.badgeKey ? counts[item.badgeKey] : null;
-            return (
-              <button key={item.id} onClick={() => onChange(item.id)} title={collapsed ? item.label : ''}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[12.5px] mb-0.5 transition-colors ${
-                  isActive ? 'bg-white/20 text-white font-medium' : 'text-white/75 hover:bg-white/10 hover:text-white'
-                }`}>
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                {!collapsed && <span className="flex-1 text-left truncate">{item.label}</span>}
-                {!collapsed && badge > 0 && (
-                  <span className="bg-rose-500 text-white text-[9px] font-medium px-1.5 py-0.5 rounded-full">{badge}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      ))}
-    </nav>
-    {!collapsed && (
-      <div className="p-3 border-t border-emerald-700/50">
-        <div className="flex items-center gap-2">
-          <Avatar nama="Sopian Hadianto" size="sm" className="!bg-white/15 !text-white" />
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium text-white truncate">Sopian Hadianto</div>
-            <div className="text-[10px] text-white/50 truncate">Komite Audit</div>
-          </div>
+
+          <Button onClick={() => onLogin(emp)} className="w-full mt-6 justify-center" size="lg" icon={ChevronRight}>
+            Masuk Sebagai {emp ? emp.nama.split(' ')[0] : '...'}
+          </Button>
+
+          <p className="text-[10px] text-slate-400 text-center mt-6">
+            {APP_NAME} v{APP_VERSION} · {ORGANIZATION} · © {new Date().getFullYear()}
+          </p>
         </div>
       </div>
-    )}
-  </aside>
-);
-
-const AppFooter = () => (
-  <footer className="border-t border-slate-200 bg-white px-5 py-4 mt-6">
-    <div className="max-w-6xl mx-auto space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-2 text-slate-600">
-          <div className="w-6 h-6 rounded-md bg-emerald-700 flex items-center justify-center">
-            <GraduationCap className="w-3.5 h-3.5 text-white" />
-          </div>
-          <span className="font-semibold text-slate-800">KMLS</span>
-          <span className="text-slate-400">·</span>
-          <span>BPKH Learning Suite</span>
-          <span className="text-slate-400">·</span>
-          <span className="text-slate-500">v{APP_VERSION}</span>
-        </div>
-        <div className="flex items-center gap-2 text-slate-600">
-          <span>Developed by</span>
-          <span className="font-semibold text-emerald-700">MS Hadianto</span>
-          <span className="text-slate-400">·</span>
-          <a href="https://github.com/mshadianto/klms" target="_blank" rel="noopener noreferrer"
-             className="text-slate-500 hover:text-emerald-700 inline-flex items-center gap-1">
-            <GitBranch className="w-3 h-3" />github.com/mshadianto/klms
-          </a>
-          <span className="text-slate-400">·</span>
-          <a href="/check.html" target="_blank" rel="noopener noreferrer"
-             className="text-slate-500 hover:text-emerald-700 inline-flex items-center gap-1">
-            <HelpCircle className="w-3 h-3" />Troubleshooting
-          </a>
-        </div>
-      </div>
-      <div className="text-[10.5px] text-slate-500 leading-relaxed bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-        <span className="font-semibold text-amber-800">Disclaimer:</span>{' '}
-        KMLS adalah <b>inisiasi personal</b> MS Hadianto sebagai prototipe Knowledge Management & Learning System
-        — <b>BUKAN aplikasi resmi Badan Pengelola Keuangan Haji (BPKH)</b> dan tidak merepresentasikan posisi, kebijakan,
-        atau sistem informasi lembaga. Seluruh nama, data pegawai, pelatihan, dan dokumen yang ditampilkan bersifat
-        <b> fiktif / dummy</b> untuk keperluan demo & eksplorasi konsep semata. Aplikasi belum melalui audit keamanan
-        formal; jangan input data sensitif, pribadi, atau rahasia jabatan ke instance demo ini. Persistensi menggunakan
-        <i> localStorage</i> browser — data tidak tersinkronisasi antar perangkat dan dapat hilang sewaktu-waktu.
-        © {new Date().getFullYear()} MS Hadianto. Disediakan apa adanya, tanpa jaminan apapun.
-      </div>
-    </div>
-  </footer>
-);
-
-const GlobalSearch = ({ data, onNavigate }) => {
-  const [q, setQ] = useState('');
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
-  }, []);
-
-  const results = useMemo(() => {
-    if (!q || q.length < 2) return null;
-    const t = q.toLowerCase();
-    const match = (s) => (s || '').toLowerCase().includes(t);
-    const assets = data.knowledgeAsset.filter(a => match(a.judul) || match(a.description) || a.tags.some(x => match(x))).slice(0, 5);
-    const pegawai = data.pegawai.filter(p => match(p.nama) || match(p.jabatan) || match(p.divisi)).slice(0, 5);
-    const smes = data.sme.filter(s => match(s.domain) || s.sertifikasi.some(c => match(c))).map(s => ({ ...s, peg: findPegawai(data, s.pegawaiId) })).slice(0, 5);
-    const cops = data.cop.filter(c => match(c.nama)).slice(0, 5);
-    const paths = (data.learningPaths || []).filter(p => match(p.title) || match(p.targetRole) || match(p.description)).slice(0, 5);
-    const questions = (data.questions || []).filter(qq => match(qq.title) || match(qq.body) || match(qq.domain)).slice(0, 5);
-    const total = assets.length + pegawai.length + smes.length + cops.length + paths.length + questions.length;
-    return { assets, pegawai, smes, cops, paths, questions, total };
-  }, [q, data]);
-
-  const go = (view) => { setOpen(false); setQ(''); onNavigate(view); };
-
-  return (
-    <div ref={ref} className="hidden md:block relative w-72">
-      <div className="flex items-center gap-2 bg-slate-100 rounded-md px-3 py-1.5">
-        <Search className="w-4 h-4 text-slate-400" />
-        <input value={q} onChange={e => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)}
-          placeholder="Cari asset, SME, pegawai, CoP, path..."
-          className="bg-transparent border-none outline-none text-sm flex-1 min-w-0" />
-        {q && <button onClick={() => setQ('')} className="text-slate-400 hover:text-slate-600"><X className="w-3.5 h-3.5" /></button>}
-      </div>
-      {open && results && (
-        <div className="absolute right-0 top-full mt-1 w-[28rem] bg-white border border-slate-200 rounded-lg shadow-xl z-40 max-h-[70vh] overflow-y-auto">
-          {results.total === 0 ? (
-            <div className="p-6 text-center text-xs text-slate-500">Tidak ada hasil untuk "<b>{q}</b>"</div>
-          ) : (
-            <div className="p-2 space-y-3">
-              {results.assets.length > 0 && (
-                <div>
-                  <div className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1"><Database className="w-3 h-3" />Knowledge Asset</div>
-                  {results.assets.map(a => {
-                    const t = ASSET_TYPES[a.type];
-                    return (
-                      <button key={a.id} onClick={() => go('km-asset')} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-slate-50 flex items-center gap-2">
-                        <t.icon className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-medium text-slate-800 truncate">{a.judul}</div>
-                          <div className="text-[10px] text-slate-500">{t.label} · v{a.version || '1.0'}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              {results.smes.length > 0 && (
-                <div>
-                  <div className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1"><Award className="w-3 h-3" />SME</div>
-                  {results.smes.map(s => (
-                    <button key={s.id} onClick={() => go('km-sme')} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-slate-50 flex items-center gap-2">
-                      <Avatar nama={s.peg?.nama || '??'} size="xs" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium text-slate-800 truncate">{s.peg?.nama || 'Unknown'}</div>
-                        <div className="text-[10px] text-slate-500 truncate">{s.domain}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {results.pegawai.length > 0 && (
-                <div>
-                  <div className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1"><Users className="w-3 h-3" />Pegawai</div>
-                  {results.pegawai.map(p => (
-                    <button key={p.id} onClick={() => go('pegawai')} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-slate-50 flex items-center gap-2">
-                      <Avatar nama={p.nama} size="xs" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium text-slate-800 truncate">{p.nama}</div>
-                        <div className="text-[10px] text-slate-500 truncate">{p.jabatan} · {p.divisi}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {results.cops.length > 0 && (
-                <div>
-                  <div className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1"><Network className="w-3 h-3" />Community of Practice</div>
-                  {results.cops.map(c => (
-                    <button key={c.id} onClick={() => go('km-cop')} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-slate-50">
-                      <div className="text-xs font-medium text-slate-800">{c.nama}</div>
-                      <div className="text-[10px] text-slate-500">{c.anggota} anggota · {c.engagement}% engagement</div>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {results.paths.length > 0 && (
-                <div>
-                  <div className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1"><Route className="w-3 h-3" />Learning Path</div>
-                  {results.paths.map(p => (
-                    <button key={p.id} onClick={() => go('km-paths')} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-slate-50">
-                      <div className="text-xs font-medium text-slate-800 truncate">{p.title}</div>
-                      <div className="text-[10px] text-slate-500">{p.targetRole} · {p.steps.length} step</div>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {results.questions.length > 0 && (
-                <div>
-                  <div className="px-2 py-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1"><HelpCircle className="w-3 h-3" />Pertanyaan</div>
-                  {results.questions.map(qq => (
-                    <button key={qq.id} onClick={() => go('km-qa')} className="w-full text-left px-2 py-1.5 rounded-md hover:bg-slate-50">
-                      <div className="text-xs font-medium text-slate-800 truncate">{qq.title}</div>
-                      <div className="text-[10px] text-slate-500">{qq.domain} · {QUESTION_STATUS[qq.status]?.label}</div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          <div className="px-3 py-2 border-t border-slate-100 text-[10px] text-slate-400 bg-slate-50/50">
-            Tekan <kbd className="px-1 bg-white border border-slate-200 rounded">Esc</kbd> untuk tutup · {results.total} hasil
-          </div>
-        </div>
-      )}
     </div>
   );
-};
+}
 
-const TopBar = ({ title, subtitle, data, onNavigate, actions, onMenu }) => (
-  <header className="bg-white border-b border-slate-200 px-5 py-3 flex items-center gap-3 flex-shrink-0 relative z-30">
-    <button onClick={onMenu} className="md:hidden p-1.5 hover:bg-slate-100 rounded-md">
-      <Menu className="w-5 h-5 text-slate-600" />
-    </button>
-    <div className="flex-1 min-w-0">
-      <h1 className="text-base font-semibold text-slate-800 truncate">{title}</h1>
-      {subtitle && <p className="text-xs text-slate-500 truncate">{subtitle}</p>}
-    </div>
-    {data && onNavigate && <GlobalSearch data={data} onNavigate={onNavigate} />}
-    {actions && <div className="flex gap-2 items-center">{actions}</div>}
-  </header>
-);
+// =====================================================================
+// LAYOUT — SIDEBAR + TOPBAR
+// =====================================================================
 
-// =================================================================================
-// MODULE: DASHBOARD
-// =================================================================================
+function getMenuForRole(role) {
+  // Each role sees a tailored menu. Common items appear for most.
+  const all = [
+    { key: 'dashboard',  label: 'Dashboard',            icon: LayoutDashboard, roles: 'all',  group: 'Utama' },
+    { key: 'pengajuan',  label: 'Pengajuan Pelatihan',  icon: ClipboardList,   roles: 'all',  group: 'Pelatihan' },
+    { key: 'approval',   label: 'Antrian Approval',     icon: CheckSquare,     roles: [ROLES.KADIV, ROLES.DEPUTI, ROLES.PELAKSANA_PSDM, ROLES.KADIV_PSDM], group: 'Pelatihan' },
+    { key: 'st',         label: 'Surat Tugas',          icon: FileSignature,   roles: [ROLES.PELAKSANA_PSDM, ROLES.KADIV_PSDM, ROLES.ADMIN, ROLES.PEGAWAI], group: 'Pelatihan' },
+    { key: 'laporan',    label: 'Laporan & Evaluasi',   icon: FileText,        roles: 'all',  group: 'Pelatihan' },
+    { key: 'katalog',    label: 'Katalog Pelatihan',    icon: BookOpen,        roles: 'all',  group: 'Master Data' },
+    { key: 'pegawai',    label: 'Direktori Pegawai',    icon: Users,           roles: 'all',  group: 'Master Data' },
+    { key: 'kategori',   label: 'Kategori Pelatihan',   icon: Layers,          roles: [ROLES.PELAKSANA_PSDM, ROLES.KADIV_PSDM, ROLES.ADMIN], group: 'Master Data' },
+    { key: 'km',         label: 'Knowledge Management', icon: Brain,           roles: 'all',  group: 'KM & TMS' },
+    { key: 'tms',        label: 'Talent Management',    icon: Target,          roles: [ROLES.KADIV, ROLES.DEPUTI, ROLES.PELAKSANA_PSDM, ROLES.KADIV_PSDM, ROLES.ADMIN], group: 'KM & TMS' },
+    { key: 'settings',   label: 'Pengaturan',           icon: SettingsIcon,    roles: 'all',  group: 'Sistem' },
+  ];
+  return all.filter(m => m.roles === 'all' || m.roles.includes(role));
+}
 
-const Dashboard = ({ data, onNavigate }) => {
-  const stats = useMemo(() => {
-    const pending = data.pengajuan.filter(p => p.status === 'pending' || p.status === 'review').length;
-    const totalBiaya = data.pengajuan.filter(p => p.status === 'approved' || p.status === 'completed').reduce((s, p) => s + p.biaya, 0);
-    const completed = data.pengajuan.filter(p => p.status === 'completed').length;
-    return {
-      totalPengajuan: data.pengajuan.length,
-      pending, completed,
-      totalBiaya,
-      totalSME: data.sme.length,
-      totalAsset: data.knowledgeAsset.length,
-      totalCoP: data.cop.length,
-      totalPegawai: data.pegawai.length,
-    };
-  }, [data]);
-
-  const recentPengajuan = useMemo(() =>
-    [...data.pengajuan].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5)
-  , [data.pengajuan]);
+function Sidebar({ user, currentView, onNavigate, collapsed, onToggleCollapse }) {
+  const menu = getMenuForRole(user.role);
+  const grouped = menu.reduce((acc, m) => {
+    (acc[m.group] = acc[m.group] || []).push(m);
+    return acc;
+  }, {});
 
   return (
-    <div className="p-5 space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="Total Pengajuan" value={stats.totalPengajuan} icon={Send} color="blue" delta={`${stats.pending} menunggu`} deltaColor="amber" />
-        <StatCard label="Realisasi Biaya" value={formatIDR(stats.totalBiaya).replace('Rp ','')} unit="Rp" icon={BarChart3} color="emerald" delta={`${stats.completed} pelatihan selesai`} />
-        <StatCard label="Knowledge Asset" value={stats.totalAsset} icon={Database} color="violet" delta="Library KM aktif" />
-        <StatCard label="SME Aktif" value={stats.totalSME} icon={Award} color="amber" delta={`${stats.totalCoP} CoP aktif`} />
+    <aside className={cls('bg-slate-900 text-slate-200 flex flex-col transition-all', collapsed ? 'w-16' : 'w-64')}>
+      <div className="px-4 py-4 border-b border-slate-800 flex items-center gap-2">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shrink-0">
+          <Brain className="w-5 h-5 text-white" />
+        </div>
+        {!collapsed && (
+          <div>
+            <div className="text-sm font-bold">{APP_NAME}</div>
+            <div className="text-[10px] text-slate-400">{ORGANIZATION}</div>
+          </div>
+        )}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-slate-800">Pengajuan Pelatihan Terkini</h3>
-            <button onClick={() => onNavigate('pengajuan')} className="text-xs text-emerald-700 hover:text-emerald-800 font-medium flex items-center gap-1">
-              Lihat semua <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-          <div className="space-y-2">
-            {recentPengajuan.length === 0 ? (
-              <EmptyState icon={Send} title="Belum ada pengajuan" description="Pengajuan pelatihan terbaru akan muncul di sini." />
-            ) : recentPengajuan.map(pg => {
-              const peg = findPegawai(data, pg.pegawaiId);
-              const stat = PENGAJUAN_STATUS[pg.status];
+      <nav className="flex-1 overflow-y-auto py-3">
+        {Object.entries(grouped).map(([group, items]) => (
+          <div key={group} className="mb-4">
+            {!collapsed && <div className="px-4 pb-1 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">{group}</div>}
+            {items.map(item => {
+              const Icon = item.icon;
+              const active = currentView === item.key;
               return (
-                <div key={pg.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 transition-colors">
-                  <Avatar nama={peg?.nama || '??'} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-slate-800 truncate">{pg.judul}</div>
-                    <div className="text-xs text-slate-500 truncate">{peg?.nama} · {peg?.divisi} · {formatDate(pg.tanggalMulai)}</div>
+                <button
+                  key={item.key}
+                  onClick={() => onNavigate(item.key)}
+                  title={collapsed ? item.label : ''}
+                  className={cls(
+                    'w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors',
+                    active ? 'bg-emerald-600/20 text-emerald-300 border-r-2 border-emerald-400' : 'text-slate-300 hover:bg-slate-800',
+                    collapsed && 'justify-center'
+                  )}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+
+      <button onClick={onToggleCollapse} className="border-t border-slate-800 px-4 py-3 text-xs text-slate-400 hover:bg-slate-800 flex items-center justify-center gap-2">
+        {collapsed ? <ChevronRight className="w-4 h-4" /> : <><ChevronLeft className="w-4 h-4" /> Collapse</>}
+      </button>
+    </aside>
+  );
+}
+
+function Topbar({ user, onLogout, onSwitchUser, notifications = 0 }) {
+  return (
+    <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
+      <div>
+        <div className="text-xs text-slate-500">Selamat datang,</div>
+        <div className="font-semibold text-slate-900">{user.nama}</div>
+      </div>
+      <div className="flex items-center gap-3">
+        <button className="relative p-2 text-slate-500 hover:text-slate-700">
+          <Bell className="w-5 h-5" />
+          {notifications > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full" />}
+        </button>
+        <div className="text-right">
+          <div className="text-xs font-medium text-slate-900">{user.jabatan}</div>
+          <Badge className={ROLE_META[user.role]?.color + ' text-[10px]'}>
+            {ROLE_META[user.role]?.label}
+          </Badge>
+        </div>
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-sm font-semibold">
+          {user.nama.split(' ').map(n => n[0]).slice(0, 2).join('')}
+        </div>
+        <Button variant="ghost" size="sm" icon={LogOut} onClick={onLogout}>Logout</Button>
+      </div>
+    </header>
+  );
+}
+
+// =====================================================================
+// VIEW — DASHBOARD
+// =====================================================================
+
+function Dashboard({ user, employees, proposals, trainings, reports, onNavigate }) {
+  const isPSDMSide = [ROLES.PELAKSANA_PSDM, ROLES.KADIV_PSDM, ROLES.ADMIN].includes(user.role);
+  const mine = proposals.filter(p => p.pengajuId === user.id || p.peserta?.some(x => x.id === user.id));
+  const pending = proposals.filter(p => {
+    const s = stageByKey(p.stage);
+    return s.actor === user.role;
+  });
+  const inProgress = proposals.filter(p => ['in_progress', 'st_issued', 'registered'].includes(p.stage));
+  const completed = proposals.filter(p => p.stage === 'completed');
+
+  // category distribution
+  const catCounts = {};
+  Object.keys(CATEGORIES).forEach(k => catCounts[k] = 0);
+  proposals.forEach(p => { catCounts[p.kategori] = (catCounts[p.kategori] || 0) + 1; });
+  const maxCat = Math.max(1, ...Object.values(catCounts));
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+        <p className="text-sm text-slate-500 mt-1">Ringkasan aktivitas pelatihan, KM, dan TMS</p>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {isPSDMSide ? (
+          <>
+            <StatCard label="Total Pengajuan" value={proposals.length} icon={ClipboardList} accent="emerald" />
+            <StatCard label="Antrian Tugas" value={pending.length} hint="Menunggu aksi Anda" icon={Clock} accent="amber" />
+            <StatCard label="Sedang Berlangsung" value={inProgress.length} icon={Zap} accent="blue" />
+            <StatCard label="Selesai (Closed-Loop)" value={completed.length} icon={CheckCircle2} accent="emerald" />
+          </>
+        ) : (
+          <>
+            <StatCard label="Pengajuan Saya" value={mine.length} icon={ClipboardList} accent="emerald" />
+            <StatCard label="Antrian Aksi Saya" value={pending.length} icon={Clock} accent="amber" />
+            <StatCard label="Sedang Berlangsung" value={inProgress.filter(p => mine.some(m => m.id === p.id)).length} icon={Zap} accent="blue" />
+            <StatCard label="Pelatihan Selesai" value={completed.filter(p => mine.some(m => m.id === p.id)).length} icon={Award} accent="emerald" />
+          </>
+        )}
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        <Card title="Antrian Aksi Anda" subtitle={`Sebagai ${ROLE_META[user.role]?.label}`} className="lg:col-span-2">
+          {pending.length === 0 ? (
+            <EmptyState icon={CheckCircle2} title="Tidak ada aksi tertunda" hint="Semua sudah ditindaklanjuti" />
+          ) : (
+            <div className="space-y-2">
+              {pending.slice(0, 6).map(p => {
+                const pengaju = employees.find(e => e.id === p.pengajuId);
+                return (
+                  <button key={p.id} onClick={() => onNavigate('pengajuan', p.id)} className="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/30 transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm text-slate-900 truncate">{p.judul}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">{p.id} · {pengaju?.nama || '-'}</div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <CategoryBadge code={p.kategori} />
+                        <StageBadge stageKey={p.stage} />
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
+        <Card title="Distribusi Kategori" subtitle="Total pengajuan per kategori">
+          <div className="space-y-2.5">
+            {Object.entries(CATEGORIES).map(([code, cat]) => (
+              <div key={code}>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-slate-700">{cat.short}</span>
+                  <span className="font-semibold text-slate-900">{catCounts[code]}</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className={cls('h-full transition-all', cat.chip)} style={{ width: `${(catCounts[code] / maxCat) * 100}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        <Card title="Aktivitas Terbaru" subtitle="10 pengajuan terakhir">
+          <div className="space-y-2">
+            {proposals.slice(-10).reverse().map(p => {
+              const pengaju = employees.find(e => e.id === p.pengajuId);
+              return (
+                <div key={p.id} className="flex items-center justify-between gap-3 py-2 border-b border-slate-100 last:border-0">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-slate-900 truncate">{p.judul}</div>
+                    <div className="text-xs text-slate-500">{pengaju?.nama || '-'} · {fmtDate(p.history?.[p.history.length - 1]?.at)}</div>
                   </div>
-                  <Badge className={stat.color}>{stat.label}</Badge>
+                  <StageBadge stageKey={p.stage} />
                 </div>
               );
             })}
           </div>
         </Card>
 
-        <Card>
-          <h3 className="text-sm font-semibold text-slate-800 mb-3">Aktivitas KM</h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-600">Top SME Kontribusi</span>
-              <span className="font-medium text-slate-800">{data.sme[0] ? findPegawai(data, data.sme[0].pegawaiId)?.nama : '-'}</span>
-            </div>
-            <div className="space-y-2">
-              {data.cop.slice(0, 4).map(c => (
-                <div key={c.id}>
-                  <div className="flex justify-between text-[11px] mb-1">
-                    <span className="text-slate-700 truncate pr-2">{c.nama}</span>
-                    <span className="text-slate-500">{c.engagement}%</span>
-                  </div>
-                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${c.engagement > 70 ? 'bg-emerald-500' : c.engagement > 40 ? 'bg-amber-500' : 'bg-rose-500'}`}
-                         style={{ width: `${c.engagement}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => onNavigate('km-cop')} className="text-xs text-emerald-700 hover:text-emerald-800 font-medium flex items-center gap-1 pt-1">
-              Detail CoP <ArrowRight className="w-3 h-3" />
+        <Card title="Quick Actions" subtitle="Aksi cepat yang sering Anda lakukan">
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => onNavigate('pengajuan')} className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-left hover:bg-emerald-100/60 transition-colors">
+              <Plus className="w-5 h-5 text-emerald-700 mb-2" />
+              <div className="text-sm font-semibold text-emerald-900">Buat Pengajuan</div>
+              <div className="text-xs text-emerald-700/80 mt-0.5">Form pengajuan pelatihan baru</div>
+            </button>
+            <button onClick={() => onNavigate('katalog')} className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-left hover:bg-blue-100/60 transition-colors">
+              <BookOpen className="w-5 h-5 text-blue-700 mb-2" />
+              <div className="text-sm font-semibold text-blue-900">Katalog Pelatihan</div>
+              <div className="text-xs text-blue-700/80 mt-0.5">Cari pelatihan tersedia</div>
+            </button>
+            <button onClick={() => onNavigate('km')} className="p-4 bg-purple-50 border border-purple-200 rounded-xl text-left hover:bg-purple-100/60 transition-colors">
+              <Brain className="w-5 h-5 text-purple-700 mb-2" />
+              <div className="text-sm font-semibold text-purple-900">Knowledge Hub</div>
+              <div className="text-xs text-purple-700/80 mt-0.5">SME, KMap, CoP, Asset</div>
+            </button>
+            <button onClick={() => onNavigate('laporan')} className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-left hover:bg-amber-100/60 transition-colors">
+              <FileText className="w-5 h-5 text-amber-700 mb-2" />
+              <div className="text-sm font-semibold text-amber-900">Laporan Saya</div>
+              <div className="text-xs text-amber-700/80 mt-0.5">Susun laporan pasca pelatihan</div>
             </button>
           </div>
         </Card>
       </div>
-
-      <div className="grid md:grid-cols-3 gap-4">
-        <button onClick={() => onNavigate('pengajuan')} className="text-left">
-          <Card className="hover:border-emerald-300 hover:shadow-sm transition-all cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
-                <Send className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-semibold text-slate-800">Ajukan Pelatihan</div>
-                <div className="text-xs text-slate-500">Form pengajuan baru</div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-slate-400" />
-            </div>
-          </Card>
-        </button>
-        <button onClick={() => onNavigate('km-asset')} className="text-left">
-          <Card className="hover:border-emerald-300 hover:shadow-sm transition-all cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-violet-50 text-violet-700 flex items-center justify-center">
-                <Database className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-semibold text-slate-800">Knowledge Asset</div>
-                <div className="text-xs text-slate-500">Repositori dokumen KM</div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-slate-400" />
-            </div>
-          </Card>
-        </button>
-        <button onClick={() => onNavigate('tms-overview')} className="text-left">
-          <Card className="hover:border-emerald-300 hover:shadow-sm transition-all cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
-                <Target className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-semibold text-slate-800">Talent Management</div>
-                <div className="text-xs text-slate-500">Acquisition → Development → Alignment</div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-slate-400" />
-            </div>
-          </Card>
-        </button>
-      </div>
     </div>
   );
-};
+}
 
-// =================================================================================
-// MODULE: PENGAJUAN PELATIHAN
-// =================================================================================
+// =====================================================================
+// VIEW — DIREKTORI PEGAWAI (Admin: CRUD; lainnya: read-only)
+// =====================================================================
 
-const PengajuanForm = ({ data, initial, onSave, onCancel }) => {
-  const [form, setForm] = useState(initial || {
-    pegawaiId: data.pegawai[0]?.id || '',
-    judul: '', jenis: 'Internal', tanggalMulai: '', tanggalSelesai: '',
-    biaya: 0, penyelenggara: '', alasan: '', status: 'pending',
-  });
-  const [errors, setErrors] = useState({});
-
-  const validate = () => {
-    const e = {};
-    if (!form.judul.trim()) e.judul = 'Wajib diisi';
-    if (!form.pegawaiId) e.pegawaiId = 'Pilih pegawai';
-    if (!form.tanggalMulai) e.tanggalMulai = 'Wajib diisi';
-    if (!form.tanggalSelesai) e.tanggalSelesai = 'Wajib diisi';
-    if (form.biaya < 0) e.biaya = 'Tidak valid';
-    if (!form.alasan.trim()) e.alasan = 'Wajib diisi';
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const handleSubmit = () => {
-    if (validate()) onSave(form);
-  };
-
-  return (
-    <div className="p-5 space-y-3">
-      <Select label="Pegawai Pengaju *" value={form.pegawaiId}
-        onChange={e => setForm({ ...form, pegawaiId: e.target.value })}
-        options={data.pegawai.map(p => ({ value: p.id, label: `${p.nama} — ${p.divisi}` }))} />
-      <Input label="Judul Pelatihan *" value={form.judul} error={errors.judul}
-        onChange={e => setForm({ ...form, judul: e.target.value })} placeholder="contoh: Sertifikasi CISA 2025" />
-      <div className="grid grid-cols-2 gap-3">
-        <Select label="Jenis *" value={form.jenis} onChange={e => setForm({ ...form, jenis: e.target.value })}
-          options={JENIS_PELATIHAN.map(j => ({ value: j, label: j }))} />
-        <Input label="Penyelenggara" value={form.penyelenggara}
-          onChange={e => setForm({ ...form, penyelenggara: e.target.value })} placeholder="contoh: ISACA" />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Input label="Tanggal Mulai *" type="date" value={form.tanggalMulai} error={errors.tanggalMulai}
-          onChange={e => setForm({ ...form, tanggalMulai: e.target.value })} />
-        <Input label="Tanggal Selesai *" type="date" value={form.tanggalSelesai} error={errors.tanggalSelesai}
-          onChange={e => setForm({ ...form, tanggalSelesai: e.target.value })} />
-      </div>
-      <Input label="Biaya (Rp)" type="number" value={form.biaya} error={errors.biaya}
-        onChange={e => setForm({ ...form, biaya: parseInt(e.target.value) || 0 })} />
-      <Textarea label="Alasan / Justifikasi *" value={form.alasan} error={errors.alasan}
-        onChange={e => setForm({ ...form, alasan: e.target.value })}
-        placeholder="Jelaskan urgensi & manfaat pelatihan ini untuk BPKH" />
-      <div className="flex justify-end gap-2 pt-2">
-        <Button variant="ghost" onClick={onCancel}>Batal</Button>
-        <Button variant="primary" icon={Save} onClick={handleSubmit}>Simpan Pengajuan</Button>
-      </div>
-    </div>
-  );
-};
-
-const PengajuanModule = ({ data, onUpdate, showToast }) => {
-  const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
+function MasterPegawai({ user, employees, setEmployees }) {
+  const canEdit = user.role === ROLES.ADMIN;
+  const [q, setQ] = useState('');
+  const [filterRole, setFilterRole] = useState('all');
   const [editing, setEditing] = useState(null);
-  const [viewing, setViewing] = useState(null);
-  const [harvestFor, setHarvestFor] = useState(null);
-  const [harvestForm, setHarvestForm] = useState({ summary: '', recommendation: '', keyTakeaways: '' });
 
-  const isHarvested = (pengajuanId) => data.knowledgeAsset.some(a => a.harvestedFrom === pengajuanId);
+  const filtered = employees.filter(e =>
+    (filterRole === 'all' || e.role === filterRole) &&
+    (q === '' || e.nama.toLowerCase().includes(q.toLowerCase()) || e.nip.includes(q) || e.jabatan.toLowerCase().includes(q.toLowerCase()))
+  );
 
-  const submitHarvest = () => {
-    if (!harvestFor) return;
-    if (!harvestForm.summary.trim()) { showToast('Ringkasan lessons learned wajib diisi', 'error'); return; }
-    const peg = findPegawai(data, harvestFor.pegawaiId);
-    const now = new Date();
-    const review = new Date(now); review.setMonth(review.getMonth() + 12);
-    const newAsset = {
-      id: uid('ka'),
-      judul: `Lessons Learned: ${harvestFor.judul}`,
-      type: 'lesson',
-      tags: [harvestFor.jenis, peg?.divisi || 'Umum'].filter(Boolean),
-      owner: harvestFor.pegawaiId,
-      description: `**Pelatihan:** ${harvestFor.judul} (${harvestFor.penyelenggara || '-'})\n**Peserta:** ${peg?.nama || '-'}\n\n**Ringkasan:**\n${harvestForm.summary}\n\n**Key Takeaways:**\n${harvestForm.keyTakeaways}\n\n**Rekomendasi:**\n${harvestForm.recommendation}`,
-      status: 'published', version: '1.0',
-      reviewDate: review.toISOString().split('T')[0],
-      ratingsUp: 0, ratingsDown: 0, comments: [], views: 0,
-      lastViewedAt: now.toISOString(), createdAt: now.toISOString(),
-      harvestedFrom: harvestFor.id,
-    };
-    onUpdate({ ...data, knowledgeAsset: [newAsset, ...data.knowledgeAsset] });
-    showToast('Lessons learned berhasil dipublish ke Knowledge Asset');
-    setHarvestFor(null);
-    setHarvestForm({ summary: '', recommendation: '', keyTakeaways: '' });
-  };
-
-  const filtered = useMemo(() => {
-    return data.pengajuan
-      .filter(p => filter === 'all' || p.status === filter)
-      .filter(p => {
-        if (!search) return true;
-        const peg = findPegawai(data, p.pegawaiId);
-        const q = search.toLowerCase();
-        return p.judul.toLowerCase().includes(q) || peg?.nama.toLowerCase().includes(q);
-      })
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  }, [data, filter, search]);
-
-  const counts = useMemo(() => ({
-    all: data.pengajuan.length,
-    pending: data.pengajuan.filter(p => p.status === 'pending').length,
-    review: data.pengajuan.filter(p => p.status === 'review').length,
-    approved: data.pengajuan.filter(p => p.status === 'approved').length,
-    completed: data.pengajuan.filter(p => p.status === 'completed').length,
-  }), [data]);
-
-  const handleSave = (form) => {
-    if (editing) {
-      const updated = data.pengajuan.map(p => p.id === editing.id ? { ...p, ...form } : p);
-      onUpdate({ ...data, pengajuan: updated });
-      showToast('Pengajuan diperbarui');
+  const handleSave = (data) => {
+    if (data.id) {
+      setEmployees(employees.map(e => e.id === data.id ? data : e));
     } else {
-      const newP = { ...form, id: uid('pg'), createdAt: new Date().toISOString() };
-      onUpdate({ ...data, pengajuan: [newP, ...data.pengajuan] });
-      showToast('Pengajuan baru ditambahkan');
+      setEmployees([...employees, { ...data, id: uid('E') }]);
     }
-    setModalOpen(false);
     setEditing(null);
   };
 
-  const handleStatusChange = (id, newStatus) => {
-    onUpdate({ ...data, pengajuan: data.pengajuan.map(p => p.id === id ? { ...p, status: newStatus } : p) });
-    showToast(`Status diubah menjadi: ${PENGAJUAN_STATUS[newStatus].label}`);
-    if (viewing?.id === id) setViewing({ ...viewing, status: newStatus });
-  };
-
   const handleDelete = (id) => {
-    if (!window.confirm('Hapus pengajuan ini?')) return;
-    onUpdate({ ...data, pengajuan: data.pengajuan.filter(p => p.id !== id) });
-    showToast('Pengajuan dihapus', 'info');
+    if (window.confirm('Hapus pegawai ini? (akan ter-soft-delete: status non-aktif)')) {
+      setEmployees(employees.map(e => e.id === id ? { ...e, status: 'non-aktif' } : e));
+    }
   };
 
   return (
-    <div className="p-5">
-      <Card padding="p-0" className="overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-            {[
-              { v: 'all', l: 'Semua', n: counts.all },
-              { v: 'pending', l: 'Menunggu', n: counts.pending },
-              { v: 'review', l: 'Review', n: counts.review },
-              { v: 'approved', l: 'Disetujui', n: counts.approved },
-              { v: 'completed', l: 'Selesai', n: counts.completed },
-            ].map(t => (
-              <button key={t.v} onClick={() => setFilter(t.v)}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  filter === t.v ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:text-slate-800'
-                }`}>
-                {t.l} {t.n > 0 && <span className="text-slate-400">({t.n})</span>}
-              </button>
-            ))}
+    <div className="space-y-5">
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Direktori Pegawai</h1>
+          <p className="text-sm text-slate-500 mt-1">{employees.filter(e => e.status === 'aktif').length} pegawai aktif · {employees.length} total</p>
+        </div>
+        {canEdit && <Button icon={Plus} onClick={() => setEditing({})}>Tambah Pegawai</Button>}
+      </div>
+
+      <Card padded={false}>
+        <div className="p-4 border-b border-slate-100 flex gap-3 flex-wrap">
+          <div className="flex-1 min-w-[200px] relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari nama, NIP, atau jabatan..." className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg" />
           </div>
-          <div className="flex items-center gap-2 bg-slate-100 rounded-md px-3 py-1.5 flex-1 min-w-0 max-w-xs">
-            <Search className="w-4 h-4 text-slate-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari judul/pegawai..."
-              className="bg-transparent outline-none text-sm w-full" />
+          <Select value={filterRole} onChange={(e) => setFilterRole(e.target.value)}
+            options={[{ value: 'all', label: 'Semua Role' }, ...Object.entries(ROLE_META).map(([k, v]) => ({ value: k, label: v.label }))]} />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-4 py-3">Pegawai</th>
+                <th className="text-left px-4 py-3">NIP</th>
+                <th className="text-left px-4 py-3">Jabatan</th>
+                <th className="text-left px-4 py-3">Divisi</th>
+                <th className="text-left px-4 py-3">Role</th>
+                <th className="text-left px-4 py-3">Status</th>
+                {canEdit && <th className="text-right px-4 py-3">Aksi</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(e => (
+                <tr key={e.id} className="border-t border-slate-100 hover:bg-slate-50/60">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-xs font-semibold shrink-0">
+                        {e.nama.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-medium text-slate-900 truncate">{e.nama}</div>
+                        <div className="text-xs text-slate-500 truncate">{e.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs">{e.nip}</td>
+                  <td className="px-4 py-3">{e.jabatan}</td>
+                  <td className="px-4 py-3 text-slate-600">{e.divisi}</td>
+                  <td className="px-4 py-3"><Badge className={ROLE_META[e.role]?.color}>{ROLE_META[e.role]?.short}</Badge></td>
+                  <td className="px-4 py-3">
+                    <Badge className={e.status === 'aktif' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}>{e.status}</Badge>
+                  </td>
+                  {canEdit && (
+                    <td className="px-4 py-3 text-right">
+                      <button onClick={() => setEditing(e)} className="text-slate-500 hover:text-emerald-600 mr-2"><Edit2 className="w-4 h-4" /></button>
+                      <button onClick={() => handleDelete(e.id)} className="text-slate-500 hover:text-rose-600"><Trash2 className="w-4 h-4" /></button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={canEdit ? 7 : 6}><EmptyState title="Tidak ada pegawai sesuai filter" /></td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {editing && (
+        <PegawaiForm
+          initial={editing}
+          onSave={handleSave}
+          onCancel={() => setEditing(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function PegawaiForm({ initial, onSave, onCancel }) {
+  const [data, setData] = useState({
+    nip: '', nama: '', jabatan: '', divisi: DIVISIONS[0], role: ROLES.PEGAWAI, email: '', status: 'aktif',
+    ...initial,
+  });
+  const set = (k, v) => setData(d => ({ ...d, [k]: v }));
+
+  return (
+    <Modal open={true} onClose={onCancel} title={initial.id ? 'Edit Pegawai' : 'Tambah Pegawai Baru'} size="md"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onCancel}>Batal</Button>
+          <Button icon={Save} onClick={() => onSave(data)}>Simpan</Button>
+        </>
+      }>
+      <div className="grid grid-cols-2 gap-4">
+        <Input label="NIP" value={data.nip} onChange={(e) => set('nip', e.target.value)} placeholder="18 digit NIP" />
+        <Input label="Email" type="email" value={data.email} onChange={(e) => set('email', e.target.value)} />
+        <Input label="Nama Lengkap" value={data.nama} onChange={(e) => set('nama', e.target.value)} className="col-span-2" />
+        <Input label="Jabatan" value={data.jabatan} onChange={(e) => set('jabatan', e.target.value)} className="col-span-2" />
+        <Select label="Divisi" value={data.divisi} onChange={(e) => set('divisi', e.target.value)}
+          options={DIVISIONS.map(d => ({ value: d, label: d }))} />
+        <Select label="Role" value={data.role} onChange={(e) => set('role', e.target.value)}
+          options={Object.entries(ROLE_META).map(([k, v]) => ({ value: k, label: v.label }))} />
+        <Select label="Status" value={data.status} onChange={(e) => set('status', e.target.value)}
+          options={[{ value: 'aktif', label: 'Aktif' }, { value: 'non-aktif', label: 'Non-Aktif' }]} className="col-span-2" />
+      </div>
+    </Modal>
+  );
+}
+
+// =====================================================================
+// VIEW — KATALOG PELATIHAN (Master Pelatihan: historis + baru, inhouse + mandiri)
+// =====================================================================
+
+function MasterPelatihan({ user, trainings, setTrainings }) {
+  const canEdit = [ROLES.PELAKSANA_PSDM, ROLES.KADIV_PSDM, ROLES.ADMIN].includes(user.role);
+  const [q, setQ] = useState('');
+  const [filterKat, setFilterKat] = useState('all');
+  const [filterJenis, setFilterJenis] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('aktif');
+  const [editing, setEditing] = useState(null);
+
+  const filtered = trainings.filter(t =>
+    (filterKat === 'all' || t.kategori === filterKat) &&
+    (filterJenis === 'all' || t.jenis === filterJenis) &&
+    (filterStatus === 'all' || t.status === filterStatus) &&
+    (q === '' || t.judul.toLowerCase().includes(q.toLowerCase()) || t.penyelenggara.toLowerCase().includes(q.toLowerCase()))
+  );
+
+  const handleSave = (data) => {
+    if (data.id) setTrainings(trainings.map(t => t.id === data.id ? data : t));
+    else setTrainings([...trainings, { ...data, id: uid('T') }]);
+    setEditing(null);
+  };
+
+  const handleArchive = (id) => {
+    setTrainings(trainings.map(t => t.id === id ? { ...t, status: 'arsip' } : t));
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Katalog Pelatihan</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Repository pelatihan: in-house, mandiri, dan eksternal. Termasuk arsip historis.
+          </p>
+        </div>
+        {canEdit && <Button icon={Plus} onClick={() => setEditing({})}>Tambah Pelatihan</Button>}
+      </div>
+
+      <Card padded={false}>
+        <div className="p-4 border-b border-slate-100 grid md:grid-cols-4 gap-3">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari pelatihan..." className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg" />
           </div>
-          <div className="ml-auto">
-            <Button variant="primary" icon={Plus} onClick={() => { setEditing(null); setModalOpen(true); }}>
-              Pengajuan Baru
-            </Button>
-          </div>
+          <Select value={filterKat} onChange={(e) => setFilterKat(e.target.value)}
+            options={[{ value: 'all', label: 'Semua Kategori' }, ...Object.entries(CATEGORIES).map(([k, v]) => ({ value: k, label: v.label }))]} />
+          <Select value={filterJenis} onChange={(e) => setFilterJenis(e.target.value)}
+            options={[
+              { value: 'all', label: 'Semua Jenis' },
+              { value: 'inhouse', label: 'In-house' },
+              { value: 'mandiri', label: 'Mandiri' },
+              { value: 'eksternal', label: 'Eksternal' },
+            ]} />
+          <Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+            options={[
+              { value: 'aktif', label: 'Aktif' },
+              { value: 'arsip', label: 'Arsip (Historis)' },
+              { value: 'all', label: 'Semua' },
+            ]} />
         </div>
 
-        {filtered.length === 0 ? (
-          <EmptyState icon={Send} title="Tidak ada pengajuan"
-            description={search ? 'Tidak ada yang cocok dengan pencarian.' : 'Mulai dengan menambahkan pengajuan baru.'}
-            action={<Button variant="primary" icon={Plus} onClick={() => setModalOpen(true)}>Pengajuan Baru</Button>} />
-        ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-4 py-3">Judul Pelatihan</th>
+                <th className="text-left px-4 py-3">Kategori</th>
+                <th className="text-left px-4 py-3">Penyelenggara</th>
+                <th className="text-left px-4 py-3">Jenis</th>
+                <th className="text-right px-4 py-3">Durasi</th>
+                <th className="text-right px-4 py-3">Biaya Est.</th>
+                <th className="text-left px-4 py-3">Status</th>
+                {canEdit && <th className="text-right px-4 py-3">Aksi</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(t => (
+                <tr key={t.id} className="border-t border-slate-100 hover:bg-slate-50/60">
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-slate-900">{t.judul}</div>
+                    <div className="text-xs text-slate-500 font-mono">{t.id}</div>
+                  </td>
+                  <td className="px-4 py-3"><CategoryBadge code={t.kategori} /></td>
+                  <td className="px-4 py-3 text-slate-700">{t.penyelenggara}</td>
+                  <td className="px-4 py-3">
+                    <Badge className={
+                      t.jenis === 'inhouse'   ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                      t.jenis === 'mandiri'   ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                                'bg-slate-50 text-slate-700 border-slate-200'
+                    }>{t.jenis}</Badge>
+                  </td>
+                  <td className="px-4 py-3 text-right">{t.durasiHari} hari</td>
+                  <td className="px-4 py-3 text-right font-medium">{fmtIDR(t.biayaEstimasi)}</td>
+                  <td className="px-4 py-3">
+                    <Badge className={t.status === 'aktif' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}>
+                      {t.status === 'aktif' ? 'Aktif' : 'Arsip'}
+                    </Badge>
+                  </td>
+                  {canEdit && (
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <button onClick={() => setEditing(t)} className="text-slate-500 hover:text-emerald-600 mr-2"><Edit2 className="w-4 h-4" /></button>
+                      {t.status === 'aktif' && <button onClick={() => handleArchive(t.id)} className="text-slate-500 hover:text-amber-600"><History className="w-4 h-4" /></button>}
+                    </td>
+                  )}
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={canEdit ? 8 : 7}><EmptyState title="Tidak ada pelatihan sesuai filter" /></td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {editing && <PelatihanForm initial={editing} onSave={handleSave} onCancel={() => setEditing(null)} />}
+    </div>
+  );
+}
+
+function PelatihanForm({ initial, onSave, onCancel }) {
+  const [data, setData] = useState({
+    judul: '', kategori: 'K2', penyelenggara: '', jenis: 'eksternal',
+    durasiHari: 1, biayaEstimasi: 0, status: 'aktif',
+    ...initial,
+  });
+  const set = (k, v) => setData(d => ({ ...d, [k]: v }));
+
+  return (
+    <Modal open={true} onClose={onCancel} title={initial.id ? 'Edit Pelatihan' : 'Tambah Pelatihan'} size="md"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onCancel}>Batal</Button>
+          <Button icon={Save} onClick={() => onSave(data)}>Simpan</Button>
+        </>
+      }>
+      <div className="grid grid-cols-2 gap-4">
+        <Input label="Judul Pelatihan" value={data.judul} onChange={(e) => set('judul', e.target.value)} className="col-span-2" />
+        <Select label="Kategori" value={data.kategori} onChange={(e) => set('kategori', e.target.value)}
+          options={Object.entries(CATEGORIES).map(([k, v]) => ({ value: k, label: `${k} — ${v.label}` }))} />
+        <Select label="Jenis Pelatihan" value={data.jenis} onChange={(e) => set('jenis', e.target.value)}
+          options={[
+            { value: 'inhouse', label: 'In-house (Internal BPKH)' },
+            { value: 'mandiri', label: 'Mandiri (Self-paced)' },
+            { value: 'eksternal', label: 'Eksternal (Penyedia luar)' },
+          ]} />
+        <Input label="Penyelenggara" value={data.penyelenggara} onChange={(e) => set('penyelenggara', e.target.value)} className="col-span-2" />
+        <Input label="Durasi (hari)" type="number" value={data.durasiHari} onChange={(e) => set('durasiHari', Number(e.target.value))} />
+        <Input label="Biaya Estimasi (Rp)" type="number" value={data.biayaEstimasi} onChange={(e) => set('biayaEstimasi', Number(e.target.value))} />
+        <Select label="Status" value={data.status} onChange={(e) => set('status', e.target.value)}
+          options={[
+            { value: 'aktif', label: 'Aktif (tersedia untuk diajukan)' },
+            { value: 'arsip', label: 'Arsip (data historis)' },
+          ]} className="col-span-2" />
+      </div>
+    </Modal>
+  );
+}
+
+// =====================================================================
+// VIEW — KATEGORI PELATIHAN (Master)
+// =====================================================================
+
+function MasterKategori({ trainings, proposals }) {
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Kategori Pelatihan</h1>
+        <p className="text-sm text-slate-500 mt-1">
+          5 kategori inti BPKH + 2 program khusus (Membership Profesi, Dukungan S2)
+        </p>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        {Object.entries(CATEGORIES).map(([code, cat]) => {
+          const countCat = trainings.filter(t => t.kategori === code).length;
+          const countProp = proposals.filter(p => p.kategori === code).length;
+          const rule = CATEGORY_RULES[code];
+          return (
+            <Card key={code}>
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={cls('w-9 h-9 rounded-lg flex items-center justify-center text-white text-xs font-bold', cat.chip)}>{code}</span>
+                    <div>
+                      <div className="font-semibold text-slate-900">{cat.label}</div>
+                      <div className="text-xs text-slate-500">Kode {code}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="p-2.5 bg-slate-50 rounded-lg">
+                  <div className="text-xs text-slate-500">Item di Katalog</div>
+                  <div className="text-lg font-bold text-slate-900">{countCat}</div>
+                </div>
+                <div className="p-2.5 bg-slate-50 rounded-lg">
+                  <div className="text-xs text-slate-500">Pengajuan</div>
+                  <div className="text-lg font-bold text-slate-900">{countProp}</div>
+                </div>
+              </div>
+              {rule && (
+                <div className="text-xs bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-amber-800">
+                  <div className="font-semibold mb-0.5">Aturan Khusus</div>
+                  {rule.maxPerYear && <div>· Maksimal {rule.maxPerYear} kali per pegawai per tahun</div>}
+                  {rule.requiresTusiAlignment && <div>· Wajib selaras dengan tugas & fungsi pegawai</div>}
+                  {rule.requiresHighLevelApproval && <div>· Memerlukan persetujuan eselon tinggi (Anggota BP)</div>}
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// =====================================================================
+// VIEW — PENGAJUAN PELATIHAN (List + Form + Detail + 10-step Approval)
+// =====================================================================
+
+function PengajuanView({ user, employees, trainings, proposals, setProposals, focusId, onClearFocus }) {
+  const [mode, setMode] = useState(focusId ? 'detail' : 'list');
+  const [selectedId, setSelectedId] = useState(focusId || null);
+
+  useEffect(() => {
+    if (focusId) { setMode('detail'); setSelectedId(focusId); }
+  }, [focusId]);
+
+  const openDetail = (id) => { setSelectedId(id); setMode('detail'); };
+  const goList = () => { setMode('list'); setSelectedId(null); onClearFocus && onClearFocus(); };
+  const goCreate = () => { setMode('create'); setSelectedId(null); };
+
+  if (mode === 'create') return <PengajuanForm user={user} employees={employees} trainings={trainings} proposals={proposals} setProposals={setProposals} onDone={goList} />;
+  if (mode === 'detail' && selectedId) {
+    const p = proposals.find(x => x.id === selectedId);
+    if (!p) return <EmptyState title="Pengajuan tidak ditemukan" action={<Button onClick={goList}>Kembali</Button>} />;
+    return <PengajuanDetail user={user} employees={employees} trainings={trainings} proposal={p} setProposals={setProposals} onBack={goList} />;
+  }
+  return <PengajuanList user={user} employees={employees} proposals={proposals} onOpen={openDetail} onCreate={goCreate} />;
+}
+
+function PengajuanList({ user, employees, proposals, onOpen, onCreate }) {
+  const [scope, setScope] = useState('mine'); // mine | inbox | all
+  const [filterStage, setFilterStage] = useState('all');
+  const [filterKat, setFilterKat] = useState('all');
+  const [q, setQ] = useState('');
+
+  const canCreateNew = true;
+  const isPSDMSide = [ROLES.PELAKSANA_PSDM, ROLES.KADIV_PSDM, ROLES.ADMIN].includes(user.role);
+
+  const filtered = proposals
+    .filter(p => {
+      if (scope === 'mine') return p.pengajuId === user.id || p.peserta?.some(x => x.id === user.id);
+      if (scope === 'inbox') return stageByKey(p.stage).actor === user.role;
+      return true;
+    })
+    .filter(p => filterStage === 'all' || p.stage === filterStage)
+    .filter(p => filterKat === 'all' || p.kategori === filterKat)
+    .filter(p => q === '' || p.judul.toLowerCase().includes(q.toLowerCase()) || p.id.toLowerCase().includes(q.toLowerCase()));
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Pengajuan Pelatihan</h1>
+          <p className="text-sm text-slate-500 mt-1">Alur 10 tahap: Pengusulan → Approval Berjenjang → ST → Pelaksanaan → Laporan → Evaluasi → Sharing KM</p>
+        </div>
+        {canCreateNew && <Button icon={Plus} onClick={onCreate}>Buat Pengajuan Baru</Button>}
+      </div>
+
+      <div className="flex gap-2 border-b border-slate-200">
+        {[
+          { v: 'mine',  label: 'Pengajuan Saya' },
+          ...(isPSDMSide || [ROLES.KADIV, ROLES.DEPUTI].includes(user.role) ? [{ v: 'inbox', label: 'Inbox Aksi Saya' }] : []),
+          ...(isPSDMSide ? [{ v: 'all', label: 'Semua Pengajuan' }] : []),
+        ].map(t => (
+          <button key={t.v} onClick={() => setScope(t.v)}
+            className={cls('px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+              scope === t.v ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700')}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <Card padded={false}>
+        <div className="p-4 border-b border-slate-100 grid md:grid-cols-3 gap-3">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari ID atau judul..." className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg" />
+          </div>
+          <Select value={filterKat} onChange={(e) => setFilterKat(e.target.value)}
+            options={[{ value: 'all', label: 'Semua Kategori' }, ...Object.entries(CATEGORIES).map(([k, v]) => ({ value: k, label: v.label }))]} />
+          <Select value={filterStage} onChange={(e) => setFilterStage(e.target.value)}
+            options={[{ value: 'all', label: 'Semua Tahap' }, ...STAGES.filter(s => s.order >= 0).map(s => ({ value: s.key, label: s.label }))]} />
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-4 py-3">ID</th>
+                <th className="text-left px-4 py-3">Judul</th>
+                <th className="text-left px-4 py-3">Pengaju</th>
+                <th className="text-left px-4 py-3">Kategori</th>
+                <th className="text-left px-4 py-3">Tanggal</th>
+                <th className="text-right px-4 py-3">Total Biaya</th>
+                <th className="text-left px-4 py-3">Tahap</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(p => {
+                const pengaju = employees.find(e => e.id === p.pengajuId);
+                return (
+                  <tr key={p.id} onClick={() => onOpen(p.id)} className="border-t border-slate-100 hover:bg-emerald-50/40 cursor-pointer">
+                    <td className="px-4 py-3 font-mono text-xs">{p.id}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-slate-900">{p.judul}</div>
+                      <div className="text-xs text-slate-500">{p.penyelenggara}</div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">{pengaju?.nama || '-'}</td>
+                    <td className="px-4 py-3"><CategoryBadge code={p.kategori} /></td>
+                    <td className="px-4 py-3 text-xs text-slate-600">{fmtDate(p.tanggalMulai)}</td>
+                    <td className="px-4 py-3 text-right font-medium">{fmtIDR(p.totalBiaya)}</td>
+                    <td className="px-4 py-3"><StageBadge stageKey={p.stage} /></td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
+                <tr><td colSpan={7}><EmptyState icon={ClipboardList} title="Belum ada pengajuan" action={<Button onClick={onCreate} icon={Plus}>Buat Pengajuan Baru</Button>} /></td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// =====================================================================
+// PENGAJUAN FORM — Multi-step sesuai template BPKH
+// =====================================================================
+
+function PengajuanForm({ user, employees, trainings, proposals, setProposals, onDone }) {
+  const [step, setStep] = useState(1);
+  const [data, setData] = useState({
+    judul: '', kategori: 'K2', refTrainingId: '', penyelenggara: '',
+    tanggalMulai: '', tanggalSelesai: '', durasiHari: 1, lokasi: '',
+    peserta: [{ id: user.id, nama: user.nama, jabatan: user.jabatan }],
+    manfaatBPKH: '', manfaatPegawai: '',
+    rtl: [{ kegiatan: '', waktu: '', hasil: '' }],
+    biayaTuition: 0, biayaTiket: 0, biayaPenginapan: 0, biayaTaksi: 0, biayaUangSaku: 0,
+  });
+  const set = (k, v) => setData(d => ({ ...d, [k]: v }));
+  const setRTL = (i, k, v) => setData(d => ({ ...d, rtl: d.rtl.map((r, ix) => ix === i ? { ...r, [k]: v } : r) }));
+  const addRTL = () => setData(d => ({ ...d, rtl: [...d.rtl, { kegiatan: '', waktu: '', hasil: '' }] }));
+  const removeRTL = (i) => setData(d => ({ ...d, rtl: d.rtl.filter((_, ix) => ix !== i) }));
+  const addPeserta = (empId) => {
+    const e = employees.find(x => x.id === empId);
+    if (!e || data.peserta.some(p => p.id === e.id)) return;
+    setData(d => ({ ...d, peserta: [...d.peserta, { id: e.id, nama: e.nama, jabatan: e.jabatan }] }));
+  };
+  const removePeserta = (id) => {
+    if (data.peserta.length <= 1) return;
+    setData(d => ({ ...d, peserta: d.peserta.filter(p => p.id !== id) }));
+  };
+
+  const totalBiaya = ['biayaTuition', 'biayaTiket', 'biayaPenginapan', 'biayaTaksi', 'biayaUangSaku']
+    .reduce((sum, k) => sum + (Number(data[k]) || 0), 0);
+
+  const onPickCatalog = (id) => {
+    const t = trainings.find(x => x.id === id);
+    if (!t) return;
+    setData(d => ({ ...d, refTrainingId: id, judul: t.judul, kategori: t.kategori, penyelenggara: t.penyelenggara, durasiHari: t.durasiHari, biayaTuition: t.biayaEstimasi }));
+  };
+
+  const cat = CATEGORIES[data.kategori];
+  const rule = CATEGORY_RULES[data.kategori];
+  const warningM1 = rule && rule.maxPerYear ? (() => {
+    const year = new Date().getFullYear();
+    const count = proposals.filter(p =>
+      p.kategori === 'M1' &&
+      p.peserta?.some(ps => ps.id === user.id) &&
+      new Date(p.tanggalMulai).getFullYear() === year &&
+      !['rejected'].includes(p.stage)
+    ).length;
+    return count >= rule.maxPerYear ? `Anda sudah mengajukan ${count} Membership tahun ini. Maksimal ${rule.maxPerYear}/tahun.` : null;
+  })() : null;
+
+  const submit = (asDraft) => {
+    const newId = newProposalId(proposals);
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    const newP = {
+      ...data,
+      id: newId,
+      pengajuId: user.id,
+      totalBiaya,
+      stage: asDraft ? 'draft' : 'submitted',
+      history: [
+        { stage: 'draft', by: user.id, at: now, note: 'Pengajuan dibuat' },
+        ...(asDraft ? [] : [{ stage: 'submitted', by: user.id, at: now, note: 'Diajukan ke Kadiv' }]),
+      ],
+    };
+    setProposals([...proposals, newP]);
+    onDone();
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" icon={ArrowLeft} onClick={onDone}>Kembali</Button>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Form Pengajuan Pelatihan</h1>
+          <p className="text-sm text-slate-500">Mengacu pada Format Formulir Pengajuan Program Pengembangan Pegawai BPKH</p>
+        </div>
+      </div>
+
+      {/* Stepper */}
+      <Card>
+        <div className="flex items-center justify-between gap-2">
+          {['Identitas Program', 'Peserta', 'Manfaat & RTL', 'Estimasi Biaya', 'Review'].map((label, i) => {
+            const n = i + 1;
+            const active = step === n;
+            const done = step > n;
+            return (
+              <React.Fragment key={n}>
+                <div className="flex items-center gap-2 flex-1">
+                  <div className={cls('w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0',
+                    done ? 'bg-emerald-600 text-white' :
+                    active ? 'bg-emerald-100 text-emerald-700 border-2 border-emerald-600' :
+                    'bg-slate-100 text-slate-500')}>
+                    {done ? <CheckCircle2 className="w-4 h-4" /> : n}
+                  </div>
+                  <div className={cls('text-xs font-medium hidden md:block', active ? 'text-emerald-700' : 'text-slate-500')}>{label}</div>
+                </div>
+                {n < 5 && <div className={cls('h-0.5 flex-1', done ? 'bg-emerald-500' : 'bg-slate-200')} />}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* STEP 1 — Identitas Program */}
+      {step === 1 && (
+        <Card title="Identitas Program yang Diajukan" subtitle="Pilih dari katalog atau isi manual untuk pelatihan baru">
+          <div className="space-y-4">
+            <Select label="Pilih dari Katalog Pelatihan (opsional)"
+              value={data.refTrainingId} onChange={(e) => onPickCatalog(e.target.value)}
+              options={[{ value: '', label: '— Isi manual (pelatihan baru / belum ada di katalog) —' },
+                ...trainings.filter(t => t.status === 'aktif').map(t => ({ value: t.id, label: `${t.judul} — ${t.penyelenggara}` }))]} />
+
+            <Select label="Kategori Pelatihan" value={data.kategori} onChange={(e) => set('kategori', e.target.value)}
+              options={Object.entries(CATEGORIES).map(([k, v]) => ({ value: k, label: `${k} — ${v.label}` }))} />
+            {cat && (
+              <div className={cls('px-3 py-2 rounded-lg border text-xs', cat.color)}>
+                Kategori: <span className="font-semibold">{cat.label}</span>
+                {warningM1 && <div className="mt-1 text-rose-700 font-medium">⚠ {warningM1}</div>}
+                {rule?.requiresHighLevelApproval && <div className="mt-1">⚡ Memerlukan persetujuan eselon tinggi (Anggota BP).</div>}
+              </div>
+            )}
+
+            <Input label="Judul / Jenis Pengembangan Pelatihan" value={data.judul} onChange={(e) => set('judul', e.target.value)} />
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Tanggal Mulai" type="date" value={data.tanggalMulai} onChange={(e) => set('tanggalMulai', e.target.value)} />
+              <Input label="Tanggal Selesai" type="date" value={data.tanggalSelesai} onChange={(e) => set('tanggalSelesai', e.target.value)} />
+              <Input label="Durasi (hari)" type="number" value={data.durasiHari} onChange={(e) => set('durasiHari', Number(e.target.value))} />
+              <Input label="Penyelenggara" value={data.penyelenggara} onChange={(e) => set('penyelenggara', e.target.value)} />
+              <Input label="Lokasi Pelaksanaan" value={data.lokasi} onChange={(e) => set('lokasi', e.target.value)} className="col-span-2" />
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* STEP 2 — Peserta */}
+      {step === 2 && (
+        <Card title="Peserta Pelatihan">
+          <div className="space-y-3">
+            <div className="space-y-2">
+              {data.peserta.map(p => (
+                <div key={p.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <div>
+                    <div className="font-medium text-sm text-slate-900">{p.nama}</div>
+                    <div className="text-xs text-slate-500">{p.jabatan}</div>
+                  </div>
+                  {data.peserta.length > 1 && (
+                    <button onClick={() => removePeserta(p.id)} className="text-rose-500 hover:text-rose-700"><Trash2 className="w-4 h-4" /></button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <Select label="Tambah Peserta" value="" onChange={(e) => e.target.value && addPeserta(e.target.value)}
+              options={[{ value: '', label: '— Pilih pegawai —' },
+                ...employees.filter(e => e.status === 'aktif' && !data.peserta.some(p => p.id === e.id))
+                  .map(e => ({ value: e.id, label: `${e.nama} — ${e.jabatan}` }))]} />
+          </div>
+        </Card>
+      )}
+
+      {/* STEP 3 — Manfaat & RTL */}
+      {step === 3 && (
+        <Card title="Manfaat Program & Rencana Tindak Lanjut (RTL)" subtitle="Wajib jelas dan terukur — kriteria approval PSDM">
+          <div className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <Textarea label="Manfaat bagi BPKH" rows={4} value={data.manfaatBPKH} onChange={(e) => set('manfaatBPKH', e.target.value)} placeholder="Bagaimana pelatihan ini mendukung tugas & fungsi unit Anda dan tujuan BPKH?" />
+              <Textarea label="Manfaat bagi Pegawai" rows={4} value={data.manfaatPegawai} onChange={(e) => set('manfaatPegawai', e.target.value)} placeholder="Kompetensi spesifik yang akan diperoleh / ditingkatkan" />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-slate-800">Rencana Kegiatan Pasca Pelatihan</label>
+                <Button size="sm" icon={Plus} variant="secondary" onClick={addRTL}>Tambah Baris</Button>
+              </div>
+              <div className="space-y-2">
+                {data.rtl.map((r, i) => (
+                  <div key={i} className="grid grid-cols-12 gap-2 items-start">
+                    <Input className="col-span-5" placeholder="Rencana kegiatan/aktivitas" value={r.kegiatan} onChange={(e) => setRTL(i, 'kegiatan', e.target.value)} />
+                    <Input className="col-span-3" placeholder="Waktu" value={r.waktu} onChange={(e) => setRTL(i, 'waktu', e.target.value)} />
+                    <Input className="col-span-3" placeholder="Hasil yang diharapkan" value={r.hasil} onChange={(e) => setRTL(i, 'hasil', e.target.value)} />
+                    <button onClick={() => removeRTL(i)} disabled={data.rtl.length <= 1} className="col-span-1 text-slate-400 hover:text-rose-600 disabled:opacity-30 mt-2"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* STEP 4 — Biaya */}
+      {step === 4 && (
+        <Card title="Perkiraan Biaya" subtitle="Komponen biaya pelatihan & perjalanan dinas">
+          <div className="space-y-3 max-w-2xl">
+            <BiayaRow label="Registration / Tuition Fee"     value={data.biayaTuition}    onChange={(v) => set('biayaTuition', v)} />
+            <BiayaRow label="Tiket Pesawat"                   value={data.biayaTiket}      onChange={(v) => set('biayaTiket', v)} />
+            <BiayaRow label="Penginapan"                      value={data.biayaPenginapan} onChange={(v) => set('biayaPenginapan', v)} />
+            <BiayaRow label="Taksi Bandara / Transportasi"    value={data.biayaTaksi}      onChange={(v) => set('biayaTaksi', v)} />
+            <BiayaRow label="Uang Saku Pelatihan"             value={data.biayaUangSaku}   onChange={(v) => set('biayaUangSaku', v)} />
+            <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
+              <div className="font-semibold text-slate-900">Total Estimasi Biaya</div>
+              <div className="text-xl font-bold text-emerald-700">{fmtIDR(totalBiaya)}</div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* STEP 5 — Review */}
+      {step === 5 && (
+        <Card title="Review Sebelum Pengajuan">
+          <div className="space-y-4 text-sm">
+            <ReviewRow label="Judul" value={data.judul} />
+            <ReviewRow label="Kategori" value={CATEGORIES[data.kategori]?.label} />
+            <ReviewRow label="Penyelenggara" value={data.penyelenggara} />
+            <ReviewRow label="Tanggal" value={`${fmtDate(data.tanggalMulai)} — ${fmtDate(data.tanggalSelesai)} (${data.durasiHari} hari)`} />
+            <ReviewRow label="Lokasi" value={data.lokasi} />
+            <ReviewRow label="Peserta" value={data.peserta.map(p => p.nama).join(', ')} />
+            <ReviewRow label="Total Biaya" value={fmtIDR(totalBiaya)} />
+            <div className="pt-3 border-t border-slate-200">
+              <div className="text-xs text-slate-500 mb-1">Manfaat bagi BPKH</div>
+              <div className="text-sm text-slate-800">{data.manfaatBPKH || <span className="text-rose-500">— belum diisi —</span>}</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-500 mb-1">Manfaat bagi Pegawai</div>
+              <div className="text-sm text-slate-800">{data.manfaatPegawai || <span className="text-rose-500">— belum diisi —</span>}</div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      <div className="flex justify-between">
+        <Button variant="secondary" icon={ArrowLeft} disabled={step === 1} onClick={() => setStep(s => s - 1)}>Sebelumnya</Button>
+        <div className="flex gap-2">
+          {step === 5 ? (
+            <>
+              <Button variant="secondary" onClick={() => submit(true)}>Simpan sebagai Draft</Button>
+              <Button icon={Send} onClick={() => submit(false)} disabled={!!warningM1}>Ajukan ke Kadiv</Button>
+            </>
+          ) : (
+            <Button icon={ArrowRight} onClick={() => setStep(s => s + 1)}>Selanjutnya</Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BiayaRow({ label, value, onChange }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="text-sm text-slate-700">{label}</div>
+      <input type="number" value={value} onChange={(e) => onChange(Number(e.target.value))}
+        className="w-48 px-3 py-1.5 text-sm text-right border border-slate-300 rounded-lg" />
+    </div>
+  );
+}
+
+function ReviewRow({ label, value }) {
+  return (
+    <div className="flex justify-between gap-4 py-1.5 border-b border-slate-100">
+      <div className="text-slate-500">{label}</div>
+      <div className="text-slate-900 font-medium text-right">{value || '-'}</div>
+    </div>
+  );
+}
+
+// =====================================================================
+// PENGAJUAN DETAIL + APPROVAL PANEL
+// =====================================================================
+
+function PengajuanDetail({ user, employees, trainings, proposal, setProposals, onBack }) {
+  const pengaju = employees.find(e => e.id === proposal.pengajuId);
+  const stage = stageByKey(proposal.stage);
+  const canAct = stage.actor === user.role && !['rejected', 'completed', 'postponed'].includes(proposal.stage);
+
+  const [showApprove, setShowApprove] = useState(false);
+  const [showReject, setShowReject] = useState(false);
+  const [showAnalyze, setShowAnalyze] = useState(false);
+  const [showST, setShowST] = useState(false);
+
+  const advance = (toKey, note = '') => {
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    const updated = {
+      ...proposal,
+      stage: toKey,
+      history: [...(proposal.history || []), { stage: toKey, by: user.id, at: now, note }],
+    };
+    setProposals(prev => prev.map(p => p.id === proposal.id ? updated : p));
+  };
+
+  const handleApprove = (note) => { advance(nextStageKey(proposal.stage), note || 'Disetujui'); setShowApprove(false); };
+  const handleReject = (note) => { advance('rejected', note); setShowReject(false); };
+  const handlePostpone = (note) => { advance('postponed', note); };
+  const handleAnalyze = (criteria, recommendation) => {
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    const updated = {
+      ...proposal,
+      analisaPSDM: { by: user.id, at: now, criteria, recommendation },
+      stage: 'approved_psdm', // analyzed & forwarded to Kadiv PSDM for final
+      history: [...(proposal.history || []), { stage: 'approved_psdm', by: user.id, at: now, note: `Analisa selesai — rekomendasi: ${recommendation}` }],
+    };
+    // Actually let it move to approved_psdm by Kadiv PSDM step; analyzing→pending Kadiv PSDM approval
+    // For simplicity: after analysis, move forward.
+    setProposals(prev => prev.map(p => p.id === proposal.id ? updated : p));
+    setShowAnalyze(false);
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" icon={ArrowLeft} onClick={onBack}>Daftar Pengajuan</Button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900">{proposal.judul}</h1>
+              <CategoryBadge code={proposal.kategori} />
+            </div>
+            <p className="text-sm text-slate-500 font-mono">{proposal.id} · diajukan oleh {pengaju?.nama}</p>
+          </div>
+        </div>
+        <StageBadge stageKey={proposal.stage} />
+      </div>
+
+      {/* Approval Action Bar */}
+      {canAct && (
+        <Card className="border-emerald-300 bg-emerald-50/40">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center"><AlertCircle className="w-5 h-5 text-emerald-700" /></div>
+              <div>
+                <div className="font-semibold text-emerald-900">Aksi Anda Diperlukan</div>
+                <div className="text-xs text-emerald-700">{stage.label} — sebagai {ROLE_META[user.role]?.label}</div>
+              </div>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {/* STAGE-SPECIFIC ACTIONS */}
+              {proposal.stage === 'submitted' && (
+                <>
+                  <Button icon={CheckCircle2} onClick={() => setShowApprove(true)}>Setujui &amp; Teruskan ke Deputi</Button>
+                  <Button variant="secondary" onClick={() => handlePostpone('Ditunda Kadiv')}>Tunda</Button>
+                  <Button variant="danger" onClick={() => setShowReject(true)}>Tolak</Button>
+                </>
+              )}
+              {proposal.stage === 'approved_kadiv' && (
+                <>
+                  <Button icon={CheckCircle2} onClick={() => setShowApprove(true)}>Setujui &amp; Teruskan ke PSDM</Button>
+                  <Button variant="secondary" onClick={() => handlePostpone('Ditunda Deputi')}>Tunda</Button>
+                  <Button variant="danger" onClick={() => setShowReject(true)}>Tolak</Button>
+                </>
+              )}
+              {proposal.stage === 'approved_deputi' && (
+                <>
+                  <Button icon={ClipboardList} onClick={() => setShowAnalyze(true)}>Mulai Analisa PSDM</Button>
+                </>
+              )}
+              {proposal.stage === 'analyzing_psdm' && (
+                <>
+                  <Button icon={ClipboardList} onClick={() => setShowAnalyze(true)}>Lengkapi Analisa</Button>
+                </>
+              )}
+              {proposal.stage === 'approved_psdm' && (
+                <>
+                  <Button icon={FileSignature} onClick={() => setShowST(true)}>Terbitkan ST &amp; Lanjutkan</Button>
+                  <Button variant="danger" onClick={() => setShowReject(true)}>Tolak</Button>
+                </>
+              )}
+              {proposal.stage === 'st_issued' && (
+                <Button icon={BookMarked} onClick={() => advance('registered', 'Pegawai didaftarkan ke penyelenggara')}>Tandai Terdaftar</Button>
+              )}
+              {proposal.stage === 'registered' && (
+                <Button icon={Clock} onClick={() => advance('in_progress', 'Pelatihan dimulai')}>Tandai Pelatihan Berlangsung</Button>
+              )}
+              {proposal.stage === 'in_progress' && user.role === ROLES.PEGAWAI && (
+                <Button icon={CheckCircle2} onClick={() => advance('paid', 'Pelatihan selesai, menunggu pembayaran')}>Tandai Selesai (Lanjut Pembayaran)</Button>
+              )}
+              {proposal.stage === 'paid' && (
+                <Button icon={DollarSign} onClick={() => advance('reported', 'Pembayaran diproses, menunggu laporan')}>Tandai Pembayaran Selesai</Button>
+              )}
+              {proposal.stage === 'reported' && user.role === ROLES.PEGAWAI && (
+                <Button icon={FileText} onClick={onBack}>Buat Laporan (menu Laporan &amp; Evaluasi)</Button>
+              )}
+              {proposal.stage === 'evaluated' && user.role === ROLES.PEGAWAI && (
+                <Button icon={Brain} onClick={() => advance('completed', 'Sharing knowledge ke CoP & upload Knowledge Asset')}>Selesaikan via Sharing KM</Button>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* MAIN */}
+        <div className="lg:col-span-2 space-y-5">
+          <Card title="Identitas Program">
+            <div className="grid grid-cols-2 gap-y-2 text-sm">
+              <div className="text-slate-500">Penyelenggara</div><div className="text-slate-900">{proposal.penyelenggara}</div>
+              <div className="text-slate-500">Tanggal</div><div className="text-slate-900">{fmtDate(proposal.tanggalMulai)} — {fmtDate(proposal.tanggalSelesai)}</div>
+              <div className="text-slate-500">Durasi</div><div className="text-slate-900">{proposal.durasiHari} hari</div>
+              <div className="text-slate-500">Lokasi</div><div className="text-slate-900">{proposal.lokasi}</div>
+            </div>
+          </Card>
+
+          <Card title="Peserta">
+            <div className="space-y-2">
+              {proposal.peserta?.map(p => (
+                <div key={p.id} className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center text-xs font-semibold">
+                    {p.nama.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm text-slate-900">{p.nama}</div>
+                    <div className="text-xs text-slate-500">{p.jabatan}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card title="Manfaat Program">
+            <div className="grid md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <div className="text-xs font-semibold text-slate-500 uppercase mb-1">Bagi BPKH</div>
+                <div className="text-slate-800 whitespace-pre-line">{proposal.manfaatBPKH || '-'}</div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-500 uppercase mb-1">Bagi Pegawai</div>
+                <div className="text-slate-800 whitespace-pre-line">{proposal.manfaatPegawai || '-'}</div>
+              </div>
+            </div>
+          </Card>
+
+          <Card title="Rencana Tindak Lanjut (RTL)">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs text-slate-500 uppercase">
+                  <tr><th className="text-left py-2">Kegiatan</th><th className="text-left py-2">Waktu</th><th className="text-left py-2">Hasil Diharapkan</th></tr>
+                </thead>
+                <tbody>
+                  {proposal.rtl?.map((r, i) => (
+                    <tr key={i} className="border-t border-slate-100">
+                      <td className="py-2">{r.kegiatan || '-'}</td>
+                      <td className="py-2 text-slate-600">{r.waktu || '-'}</td>
+                      <td className="py-2 text-slate-600">{r.hasil || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          <Card title="Perkiraan Biaya">
+            <div className="space-y-1.5 text-sm">
+              <BiayaSummaryRow label="Tuition Fee" value={proposal.biayaTuition} />
+              <BiayaSummaryRow label="Tiket" value={proposal.biayaTiket} />
+              <BiayaSummaryRow label="Penginapan" value={proposal.biayaPenginapan} />
+              <BiayaSummaryRow label="Taksi" value={proposal.biayaTaksi} />
+              <BiayaSummaryRow label="Uang Saku" value={proposal.biayaUangSaku} />
+              <div className="flex justify-between pt-2 border-t border-slate-200 font-semibold">
+                <div>Total</div>
+                <div className="text-emerald-700">{fmtIDR(proposal.totalBiaya)}</div>
+              </div>
+            </div>
+          </Card>
+
+          {proposal.analisaPSDM && (
+            <Card title="Analisa Pelaksana PSDM" className="border-teal-300">
+              <div className="space-y-3 text-sm">
+                <div className="text-xs text-slate-500">Dianalisa oleh {employees.find(e => e.id === proposal.analisaPSDM.by)?.nama || '-'} · {fmtDateTime(proposal.analisaPSDM.at)}</div>
+                <div className="grid grid-cols-2 gap-3">
+                  {APPROVAL_CRITERIA.map(c => {
+                    const score = proposal.analisaPSDM.criteria?.[c.key] || 0;
+                    return (
+                      <div key={c.key} className="p-2.5 bg-teal-50 rounded-lg border border-teal-200">
+                        <div className="text-xs text-teal-800">{c.label}</div>
+                        <div className="flex items-center gap-1 mt-1">
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <div key={n} className={cls('w-5 h-5 rounded text-[10px] font-semibold flex items-center justify-center',
+                              n <= score ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-400')}>{n}</div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="p-3 bg-teal-50 rounded-lg border border-teal-200">
+                  <div className="text-xs font-semibold text-teal-800 mb-1">Rekomendasi</div>
+                  <div className="text-sm text-teal-900">{proposal.analisaPSDM.recommendation}</div>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {proposal.suratTugas && (
+            <Card title="Surat Tugas Pelatihan" className="border-emerald-300" action={<Button size="sm" variant="secondary" icon={Printer} onClick={() => window.print()}>Cetak</Button>}>
+              <div className="space-y-2 text-sm">
+                <div className="text-xs text-slate-500">No. ST: <span className="font-mono text-slate-900">{proposal.suratTugas.nomor}</span></div>
+                <div className="text-xs text-slate-500">Terbit: {fmtDate(proposal.suratTugas.tanggal)}</div>
+                <div className="text-xs text-slate-500">Ditandatangani: {employees.find(e => e.id === proposal.suratTugas.signedBy)?.nama || '-'}</div>
+                <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-900 whitespace-pre-line">{proposal.suratTugas.isi}</div>
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {/* TIMELINE */}
+        <div className="space-y-5">
+          <Card title="Timeline Approval 10-Tahap" padded={false}>
+            <div className="p-4">
+              <ApprovalTimeline proposal={proposal} employees={employees} />
+            </div>
+          </Card>
+
+          <Card title="Riwayat Aksi">
+            <div className="space-y-3">
+              {(proposal.history || []).slice().reverse().map((h, i) => {
+                const actor = employees.find(e => e.id === h.by);
+                return (
+                  <div key={i} className="flex gap-3">
+                    <div className="w-2 h-2 mt-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    <div className="text-xs">
+                      <div className="font-medium text-slate-800">{stageByKey(h.stage).label}</div>
+                      <div className="text-slate-500">{actor?.nama || 'Sistem'} · {h.at}</div>
+                      {h.note && <div className="text-slate-600 italic mt-0.5">"{h.note}"</div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {/* MODALS */}
+      <ApprovalModal open={showApprove} onClose={() => setShowApprove(false)} onConfirm={handleApprove}
+        title="Setujui Pengajuan" confirmLabel="Setujui" variant="primary" />
+      <ApprovalModal open={showReject} onClose={() => setShowReject(false)} onConfirm={handleReject}
+        title="Tolak Pengajuan" confirmLabel="Tolak" variant="danger" requireNote />
+      {showAnalyze && <AnalisaModal proposal={proposal} onClose={() => setShowAnalyze(false)} onSubmit={handleAnalyze} />}
+      {showST && <SuratTugasModal proposal={proposal} user={user} onClose={() => setShowST(false)} onIssue={(st) => {
+        const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
+        setProposals(prev => prev.map(p => p.id === proposal.id
+          ? { ...p, stage: 'st_issued', suratTugas: st, history: [...(p.history || []), { stage: 'st_issued', by: user.id, at: now, note: `ST diterbitkan: ${st.nomor}` }] }
+          : p));
+        setShowST(false);
+      }} />}
+    </div>
+  );
+}
+
+function BiayaSummaryRow({ label, value }) {
+  return (
+    <div className="flex justify-between">
+      <div className="text-slate-600">{label}</div>
+      <div className="text-slate-900">{fmtIDR(value)}</div>
+    </div>
+  );
+}
+
+function ApprovalTimeline({ proposal, employees }) {
+  const positiveStages = STAGES.filter(s => s.order >= 0);
+  const currentStage = stageByKey(proposal.stage);
+  const isTerminated = ['rejected', 'postponed'].includes(proposal.stage);
+
+  return (
+    <div className="space-y-1">
+      {positiveStages.map(s => {
+        const done = !isTerminated && currentStage.order >= s.order;
+        const current = currentStage.order === s.order;
+        const Icon = s.icon;
+        return (
+          <div key={s.key} className="flex items-start gap-2.5">
+            <div className={cls('w-6 h-6 rounded-full flex items-center justify-center shrink-0',
+              done && !current ? 'bg-emerald-600 text-white' :
+              current ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500' :
+              'bg-slate-100 text-slate-400')}>
+              <Icon className="w-3 h-3" />
+            </div>
+            <div className="flex-1 min-w-0 -mt-0.5 pb-2">
+              <div className={cls('text-xs font-medium', current ? 'text-emerald-700' : done ? 'text-slate-800' : 'text-slate-400')}>{s.label}</div>
+              <div className="text-[10px] text-slate-400">{ROLE_META[s.actor]?.label || '-'}</div>
+            </div>
+          </div>
+        );
+      })}
+      {isTerminated && (
+        <div className="mt-2 p-2 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700">
+          Pengajuan {proposal.stage === 'rejected' ? 'ditolak' : 'ditunda'}.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ApprovalModal({ open, onClose, onConfirm, title, confirmLabel, variant, requireNote }) {
+  const [note, setNote] = useState('');
+  useEffect(() => { if (open) setNote(''); }, [open]);
+  if (!open) return null;
+  return (
+    <Modal open={open} onClose={onClose} title={title} size="sm"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Batal</Button>
+          <Button variant={variant === 'danger' ? 'danger' : 'primary'} onClick={() => onConfirm(note)} disabled={requireNote && !note.trim()}>{confirmLabel}</Button>
+        </>
+      }>
+      <Textarea label={requireNote ? 'Alasan (wajib)' : 'Catatan (opsional)'} rows={4} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Catatan untuk diteruskan..." />
+    </Modal>
+  );
+}
+
+function AnalisaModal({ proposal, onClose, onSubmit }) {
+  const [criteria, setCriteria] = useState(() => {
+    const init = {};
+    APPROVAL_CRITERIA.forEach(c => { init[c.key] = 0; });
+    return init;
+  });
+  const [recommendation, setRecommendation] = useState('Direkomendasikan untuk disetujui');
+  const set = (k, v) => setCriteria(c => ({ ...c, [k]: v }));
+  const avg = (Object.values(criteria).reduce((s, v) => s + v, 0) / APPROVAL_CRITERIA.length).toFixed(1);
+  const valid = Object.values(criteria).every(v => v > 0);
+
+  return (
+    <Modal open={true} onClose={onClose} title="Analisa Pengajuan (Pelaksana PSDM)" size="lg"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Batal</Button>
+          <Button onClick={() => onSubmit(criteria, recommendation)} disabled={!valid}>Submit Analisa &amp; Teruskan ke Kadiv PSDM</Button>
+        </>
+      }>
+      <div className="space-y-4">
+        <div className="text-sm text-slate-600">
+          Nilai 4 kriteria berikut untuk pengajuan <span className="font-semibold text-slate-900">{proposal.judul}</span>. Skor 1 (kurang) — 5 (istimewa).
+        </div>
+        <div className="space-y-3">
+          {APPROVAL_CRITERIA.map(c => (
+            <div key={c.key} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="text-sm font-medium text-slate-800 mb-2">{c.label}</div>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button key={n} onClick={() => set(c.key, n)}
+                    className={cls('w-10 h-10 rounded-lg text-sm font-semibold transition-colors',
+                      criteria[c.key] === n ? 'bg-emerald-600 text-white shadow' : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100')}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+          <div className="text-sm font-medium text-emerald-900">Rata-rata Skor Penilaian</div>
+          <div className="text-2xl font-bold text-emerald-700">{avg}</div>
+        </div>
+        <Textarea label="Rekomendasi" rows={3} value={recommendation} onChange={(e) => setRecommendation(e.target.value)} />
+      </div>
+    </Modal>
+  );
+}
+
+function SuratTugasModal({ proposal, user, onClose, onIssue }) {
+  const year = new Date().getFullYear();
+  const seq = String(Math.floor(Math.random() * 9000) + 1000);
+  const [nomor, setNomor] = useState(`ST-${seq}/PSDM/BPKH/${String(new Date().getMonth() + 1).padStart(2, '0')}/${year}`);
+  const isi = `Berdasarkan persetujuan pengajuan ${proposal.id}, dengan ini ditugaskan:
+
+Nama   : ${proposal.peserta.map(p => p.nama).join(', ')}
+Jabatan: ${proposal.peserta.map(p => p.jabatan).join(', ')}
+
+Untuk mengikuti:
+${proposal.judul}
+Penyelenggara: ${proposal.penyelenggara}
+Tanggal      : ${fmtDate(proposal.tanggalMulai)} — ${fmtDate(proposal.tanggalSelesai)} (${proposal.durasiHari} hari)
+Lokasi       : ${proposal.lokasi}
+
+Biaya sebesar ${fmtIDR(proposal.totalBiaya)} dibebankan pada anggaran BPKH TA ${year}.
+
+Demikian Surat Tugas ini diterbitkan untuk dilaksanakan.`;
+
+  return (
+    <Modal open={true} onClose={onClose} title="Terbitkan Surat Tugas Pelatihan" size="lg"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Batal</Button>
+          <Button icon={FileSignature} onClick={() => onIssue({ nomor, tanggal: new Date().toISOString().slice(0, 10), signedBy: user.id, isi })}>Terbitkan ST</Button>
+        </>
+      }>
+      <div className="space-y-3">
+        <Input label="Nomor ST" value={nomor} onChange={(e) => setNomor(e.target.value)} />
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1">Isi Surat Tugas</label>
+          <pre className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono whitespace-pre-wrap text-slate-800">{isi}</pre>
+        </div>
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+          ST akan ditandatangani oleh <span className="font-semibold">{user.nama}</span> ({ROLE_META[user.role]?.label}). Setelah diterbitkan, pengajuan otomatis berlanjut ke tahap pendaftaran.
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// =====================================================================
+// VIEW — SURAT TUGAS DIRECTORY
+// =====================================================================
+
+function SuratTugasView({ user, employees, proposals }) {
+  const withST = proposals.filter(p => p.suratTugas);
+  const mine = withST.filter(p => p.peserta?.some(x => x.id === user.id));
+  const isPSDMSide = [ROLES.PELAKSANA_PSDM, ROLES.KADIV_PSDM, ROLES.ADMIN].includes(user.role);
+  const list = isPSDMSide ? withST : mine;
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Surat Tugas Pelatihan</h1>
+        <p className="text-sm text-slate-500 mt-1">{list.length} ST terbit · {isPSDMSide ? 'semua pegawai' : 'milik Anda'}</p>
+      </div>
+      <Card padded={false}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-4 py-3">No. ST</th>
+                <th className="text-left px-4 py-3">Pelatihan</th>
+                <th className="text-left px-4 py-3">Peserta</th>
+                <th className="text-left px-4 py-3">Tanggal Pelatihan</th>
+                <th className="text-left px-4 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.map(p => (
+                <tr key={p.id} className="border-t border-slate-100 hover:bg-slate-50/60">
+                  <td className="px-4 py-3 font-mono text-xs">{p.suratTugas.nomor}</td>
+                  <td className="px-4 py-3">{p.judul}</td>
+                  <td className="px-4 py-3 text-slate-700">{p.peserta?.map(x => x.nama).join(', ')}</td>
+                  <td className="px-4 py-3 text-xs text-slate-600">{fmtDate(p.tanggalMulai)} — {fmtDate(p.tanggalSelesai)}</td>
+                  <td className="px-4 py-3"><StageBadge stageKey={p.stage} /></td>
+                </tr>
+              ))}
+              {list.length === 0 && <tr><td colSpan={5}><EmptyState icon={FileSignature} title="Belum ada Surat Tugas" /></td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// =====================================================================
+// VIEW — LAPORAN PELAKSANAAN & EVALUASI LEVEL 3
+// =====================================================================
+
+function LaporanView({ user, employees, proposals, setProposals, reports, setReports, evaluations, setEvaluations }) {
+  const [tab, setTab] = useState('pending');
+  const [editingReport, setEditingReport] = useState(null);
+  const [editingEval, setEditingEval] = useState(null);
+
+  const mine = proposals.filter(p => p.peserta?.some(x => x.id === user.id));
+  const needsReport = mine.filter(p => p.stage === 'reported');
+  const reported = proposals.filter(p => reports.some(r => r.proposalId === p.id));
+  const needsEval = proposals.filter(p => p.stage === 'reported' || p.stage === 'evaluated');
+  const isApprover = [ROLES.KADIV, ROLES.DEPUTI, ROLES.KADIV_PSDM].includes(user.role);
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Laporan &amp; Evaluasi Pelatihan</h1>
+        <p className="text-sm text-slate-500 mt-1">Laporan pelaksanaan (oleh peserta) &amp; Evaluasi Level 3 (oleh atasan langsung)</p>
+      </div>
+
+      <div className="flex gap-2 border-b border-slate-200">
+        {[
+          { v: 'pending', label: `Perlu Laporan (${needsReport.length})` },
+          { v: 'reports', label: 'Laporan Tersusun' },
+          ...(isApprover ? [{ v: 'eval', label: 'Evaluasi Level 3' }] : []),
+        ].map(t => (
+          <button key={t.v} onClick={() => setTab(t.v)}
+            className={cls('px-4 py-2 text-sm font-medium border-b-2 -mb-px',
+              tab === t.v ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700')}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'pending' && (
+        <Card padded={false}>
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+              <tr><th className="text-left px-4 py-3">Pelatihan</th><th className="text-left px-4 py-3">Tanggal</th><th className="text-right px-4 py-3">Aksi</th></tr>
+            </thead>
+            <tbody>
+              {needsReport.map(p => (
+                <tr key={p.id} className="border-t border-slate-100">
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-slate-900">{p.judul}</div>
+                    <div className="text-xs text-slate-500 font-mono">{p.id}</div>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{fmtDate(p.tanggalMulai)} — {fmtDate(p.tanggalSelesai)}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Button size="sm" icon={FileText} onClick={() => setEditingReport(p)}>Buat Laporan</Button>
+                  </td>
+                </tr>
+              ))}
+              {needsReport.length === 0 && <tr><td colSpan={3}><EmptyState icon={CheckCircle2} title="Semua laporan tertangani" /></td></tr>}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      {tab === 'reports' && (
+        <Card padded={false}>
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-4 py-3">Pelatihan</th>
+                <th className="text-left px-4 py-3">Peserta</th>
+                <th className="text-left px-4 py-3">Tanggal Laporan</th>
+                <th className="text-left px-4 py-3">Avg Kepuasan</th>
+                <th className="text-left px-4 py-3">Avg Pemahaman</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reports.map(r => {
+                const p = proposals.find(x => x.id === r.proposalId);
+                return (
+                  <tr key={r.id} className="border-t border-slate-100">
+                    <td className="px-4 py-3">{p?.judul || '-'}</td>
+                    <td className="px-4 py-3">{p?.peserta?.map(x => x.nama).join(', ')}</td>
+                    <td className="px-4 py-3 text-xs">{fmtDate(r.tanggal)}</td>
+                    <td className="px-4 py-3 font-medium">{r.avgKepuasan?.toFixed(1) || '-'}</td>
+                    <td className="px-4 py-3 font-medium">{r.avgPemahaman?.toFixed(1) || '-'}</td>
+                  </tr>
+                );
+              })}
+              {reports.length === 0 && <tr><td colSpan={5}><EmptyState title="Belum ada laporan tersusun" /></td></tr>}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      {tab === 'eval' && (
+        <Card padded={false}>
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+              <tr><th className="text-left px-4 py-3">Pegawai</th><th className="text-left px-4 py-3">Pelatihan</th><th className="text-left px-4 py-3">Status Eval</th><th className="text-right px-4 py-3">Aksi</th></tr>
+            </thead>
+            <tbody>
+              {needsEval.map(p => {
+                const ev = evaluations.find(e => e.proposalId === p.id);
+                return (
+                  <tr key={p.id} className="border-t border-slate-100">
+                    <td className="px-4 py-3">{p.peserta?.map(x => x.nama).join(', ')}</td>
+                    <td className="px-4 py-3">{p.judul}</td>
+                    <td className="px-4 py-3">{ev ? <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">Sudah dievaluasi</Badge> : <Badge className="bg-amber-50 text-amber-700 border-amber-200">Belum dievaluasi</Badge>}</td>
+                    <td className="px-4 py-3 text-right">
+                      <Button size="sm" icon={Award} onClick={() => setEditingEval(p)}>{ev ? 'Lihat / Ubah' : 'Isi Evaluasi'}</Button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {needsEval.length === 0 && <tr><td colSpan={4}><EmptyState title="Tidak ada pegawai yang perlu dievaluasi" /></td></tr>}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      {editingReport && <LaporanForm user={user} proposal={editingReport} onClose={() => setEditingReport(null)} onSubmit={(r) => {
+        setReports([...reports, { ...r, id: uid('R'), proposalId: editingReport.id, by: user.id, tanggal: new Date().toISOString().slice(0, 10) }]);
+        // advance stage
+        const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
+        setProposals(prev => prev.map(p => p.id === editingReport.id
+          ? { ...p, history: [...(p.history || []), { stage: 'reported', by: user.id, at: now, note: 'Laporan & RTL diserahkan; materi diunggah ke KM; sertifikat ke profil pegawai' }] }
+          : p));
+        setEditingReport(null);
+      }} />}
+
+      {editingEval && <EvaluasiLevel3Form user={user} proposal={editingEval} existing={evaluations.find(e => e.proposalId === editingEval.id)} onClose={() => setEditingEval(null)} onSubmit={(ev) => {
+        const exists = evaluations.find(e => e.proposalId === editingEval.id);
+        const data = { ...ev, id: exists?.id || uid('EV'), proposalId: editingEval.id, by: user.id, tanggal: new Date().toISOString().slice(0, 10) };
+        setEvaluations(exists ? evaluations.map(e => e.proposalId === editingEval.id ? data : e) : [...evaluations, data]);
+        const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
+        setProposals(prev => prev.map(p => p.id === editingEval.id
+          ? { ...p, stage: 'evaluated', history: [...(p.history || []), { stage: 'evaluated', by: user.id, at: now, note: 'Evaluasi Level 3 selesai' }] }
+          : p));
+        setEditingEval(null);
+      }} />}
+    </div>
+  );
+}
+
+function LaporanForm({ user, proposal, onClose, onSubmit }) {
+  const ASPEK_KEPUASAN = [
+    'Mutu Materi Pelatihan',
+    'Instruktur dalam Menyampaikan Materi',
+    'Instruktur dalam Menjawab Pertanyaan',
+    'Manfaat bagi Peningkatan Ketrampilan',
+    'Fasilitas Training',
+  ];
+  const ASPEK_PEMAHAMAN = [
+    'Pemahaman Keseluruhan Materi',
+    'Pemahaman Poin-poin Utama',
+    'Pemahaman Manfaat Materi',
+    'Pemahaman Penerapan ke Pekerjaan',
+    'Pemahaman Penyampaian ke Rekan',
+  ];
+
+  const [data, setData] = useState({
+    latarBelakang: '', dasarHukum: '', tujuanPelatihan: '', resumeMateri: '',
+    dokumentasi: '', sertifikat: '',
+    kepuasan: ASPEK_KEPUASAN.map(() => 3),
+    pemahaman: ASPEK_PEMAHAMAN.map(() => 3),
+    rtl: [{ rencana: '', tujuan: '', waktu: '', pic: '' }],
+    tanggapan: '',
+    materiUpload: '', sertifikatUpload: '',
+  });
+  const set = (k, v) => setData(d => ({ ...d, [k]: v }));
+  const setScore = (group, idx, val) => setData(d => ({ ...d, [group]: d[group].map((s, i) => i === idx ? val : s) }));
+  const setRTL = (i, k, v) => setData(d => ({ ...d, rtl: d.rtl.map((r, ix) => ix === i ? { ...r, [k]: v } : r) }));
+
+  const avgKep = data.kepuasan.reduce((a, b) => a + b, 0) / data.kepuasan.length;
+  const avgPem = data.pemahaman.reduce((a, b) => a + b, 0) / data.pemahaman.length;
+
+  return (
+    <Modal open={true} onClose={onClose} title={`Laporan Pelaksanaan: ${proposal.judul}`} size="xl"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Batal</Button>
+          <Button icon={Save} onClick={() => onSubmit({ ...data, avgKepuasan: avgKep, avgPemahaman: avgPem })}>Simpan &amp; Submit Laporan</Button>
+        </>
+      }>
+      <div className="space-y-5">
+        <section>
+          <h4 className="font-semibold text-slate-900 mb-2">A. Pendahuluan</h4>
+          <div className="grid md:grid-cols-2 gap-3">
+            <Textarea label="Latar Belakang" rows={3} value={data.latarBelakang} onChange={(e) => set('latarBelakang', e.target.value)} />
+            <Textarea label="Dasar Hukum / Referensi" rows={3} value={data.dasarHukum} onChange={(e) => set('dasarHukum', e.target.value)} />
+          </div>
+        </section>
+
+        <section>
+          <h4 className="font-semibold text-slate-900 mb-2">B. Substansi Pelatihan</h4>
+          <div className="space-y-3">
+            <Textarea label="Tujuan Pelatihan" rows={3} value={data.tujuanPelatihan} onChange={(e) => set('tujuanPelatihan', e.target.value)} />
+            <Textarea label="Resume Materi Pelatihan" rows={4} value={data.resumeMateri} onChange={(e) => set('resumeMateri', e.target.value)} />
+          </div>
+        </section>
+
+        <section>
+          <h4 className="font-semibold text-slate-900 mb-2">C. Upload (Closed-Loop ke KM)</h4>
+          <div className="grid md:grid-cols-2 gap-3">
+            <Input label="URL Materi (Upload ke Knowledge Asset)" value={data.materiUpload} onChange={(e) => set('materiUpload', e.target.value)} placeholder="https://..." hint="Wajib — materi otomatis ter-link ke Knowledge Asset" />
+            <Input label="URL Sertifikat (Ter-link ke profil pegawai)" value={data.sertifikatUpload} onChange={(e) => set('sertifikatUpload', e.target.value)} placeholder="https://..." hint="Sertifikat tersimpan di database pegawai" />
+          </div>
+        </section>
+
+        <section>
+          <h4 className="font-semibold text-slate-900 mb-2">D. Evaluasi Level 1 — Kepuasan Peserta</h4>
+          <table className="w-full text-sm">
+            <thead className="text-xs text-slate-500 uppercase">
+              <tr><th className="text-left py-2">Aspek</th><th className="text-center py-2">Skor (1-5)</th></tr>
+            </thead>
+            <tbody>
+              {ASPEK_KEPUASAN.map((a, i) => (
+                <tr key={i} className="border-t border-slate-100">
+                  <td className="py-2 text-sm">{a}</td>
+                  <td className="py-2">
+                    <div className="flex gap-1 justify-center">
+                      {[1, 2, 3, 4, 5].map(n => (
+                        <button key={n} onClick={() => setScore('kepuasan', i, n)}
+                          className={cls('w-7 h-7 rounded text-xs font-semibold',
+                            data.kepuasan[i] === n ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              <tr className="border-t border-slate-200 font-semibold">
+                <td className="py-2">Rata-rata</td>
+                <td className="py-2 text-center text-emerald-700">{avgKep.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section>
+          <h4 className="font-semibold text-slate-900 mb-2">E. Evaluasi Level 2 — Pemahaman Materi</h4>
+          <table className="w-full text-sm">
+            <thead className="text-xs text-slate-500 uppercase">
+              <tr><th className="text-left py-2">Aspek</th><th className="text-center py-2">Skor (1-5)</th></tr>
+            </thead>
+            <tbody>
+              {ASPEK_PEMAHAMAN.map((a, i) => (
+                <tr key={i} className="border-t border-slate-100">
+                  <td className="py-2 text-sm">{a}</td>
+                  <td className="py-2">
+                    <div className="flex gap-1 justify-center">
+                      {[1, 2, 3, 4, 5].map(n => (
+                        <button key={n} onClick={() => setScore('pemahaman', i, n)}
+                          className={cls('w-7 h-7 rounded text-xs font-semibold',
+                            data.pemahaman[i] === n ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              <tr className="border-t border-slate-200 font-semibold">
+                <td className="py-2">Rata-rata</td>
+                <td className="py-2 text-center text-emerald-700">{avgPem.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section>
+          <h4 className="font-semibold text-slate-900 mb-2">F. Rencana Tindaklanjut (basis Evaluasi Level 3)</h4>
+          <div className="space-y-2">
+            {data.rtl.map((r, i) => (
+              <div key={i} className="grid grid-cols-12 gap-2">
+                <Input className="col-span-4" placeholder="Rencana Kerja" value={r.rencana} onChange={(e) => setRTL(i, 'rencana', e.target.value)} />
+                <Input className="col-span-3" placeholder="Tujuan" value={r.tujuan} onChange={(e) => setRTL(i, 'tujuan', e.target.value)} />
+                <Input className="col-span-3" placeholder="Waktu" value={r.waktu} onChange={(e) => setRTL(i, 'waktu', e.target.value)} />
+                <Input className="col-span-2" placeholder="PIC" value={r.pic} onChange={(e) => setRTL(i, 'pic', e.target.value)} />
+              </div>
+            ))}
+            <Button size="sm" variant="secondary" icon={Plus} onClick={() => set('rtl', [...data.rtl, { rencana: '', tujuan: '', waktu: '', pic: '' }])}>Tambah RTL</Button>
+          </div>
+        </section>
+
+        <section>
+          <Textarea label="G. Tanggapan & Rekomendasi Selanjutnya" rows={3} value={data.tanggapan} onChange={(e) => set('tanggapan', e.target.value)} />
+        </section>
+      </div>
+    </Modal>
+  );
+}
+
+function EvaluasiLevel3Form({ user, proposal, existing, onClose, onSubmit }) {
+  const KRITERIA = [
+    { group: 'Pembelajaran', items: [
+      'Peserta memiliki keterampilan & pengetahuan lebih tinggi daripada sebelumnya',
+      'Peserta menghasilkan ide, pendekatan, atau solusi baru',
+      'Peserta mampu menghasilkan performa kerja sesuai target',
+    ]},
+    { group: 'Perilaku', items: [
+      'Peserta berperilaku berbeda di pekerjaan setelah pelatihan',
+      'Peserta menggunakan keterampilan & pengetahuan dari pelatihan',
+      'Peserta dapat dijadikan Role Model',
+    ]},
+    { group: 'Hasil', items: [
+      'Knowledge sharing kepada rekan kerja',
+      'Meningkatkan kinerja tim',
+      'Melakukan perbaikan berkesinambungan di proses kerja',
+    ]},
+  ];
+  const init = existing || {
+    scores: KRITERIA.flatMap(g => g.items.map(() => 3)),
+    implementasi: [{ rencana: '', tujuan: '', tindakan: '', hasil: '' }],
+    stop: '', start: '', continueText: '',
+  };
+  const [data, setData] = useState(init);
+  const setScore = (idx, val) => setData(d => ({ ...d, scores: d.scores.map((s, i) => i === idx ? val : s) }));
+  const setImpl = (i, k, v) => setData(d => ({ ...d, implementasi: d.implementasi.map((r, ix) => ix === i ? { ...r, [k]: v } : r) }));
+  const avg = (data.scores.reduce((a, b) => a + b, 0) / data.scores.length).toFixed(2);
+
+  let runningIdx = -1;
+  return (
+    <Modal open={true} onClose={onClose} title="Formulir Evaluasi Pelatihan Level 3" size="xl"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Batal</Button>
+          <Button icon={Save} onClick={() => onSubmit({ ...data, avg: Number(avg) })}>Simpan Evaluasi</Button>
+        </>
+      }>
+      <div className="space-y-5">
+        <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm">
+          <div><span className="text-slate-500">Nama Peserta:</span> <span className="font-medium">{proposal.peserta?.map(p => p.nama).join(', ')}</span></div>
+          <div><span className="text-slate-500">Pelatihan:</span> <span className="font-medium">{proposal.judul}</span></div>
+          <div><span className="text-slate-500">Penyelenggara:</span> {proposal.penyelenggara}</div>
+        </div>
+
+        <section>
+          <h4 className="font-semibold text-slate-900 mb-2">Kriteria Evaluasi</h4>
+          <p className="text-xs text-slate-500 mb-3">Skor: 1 (Kurang) · 2 (Cukup) · 3 (Baik) · 4 (Baik Sekali) · 5 (Istimewa)</p>
+          {KRITERIA.map((g, gi) => (
+            <div key={gi} className="mb-4">
+              <div className="text-sm font-semibold text-emerald-800 mb-2">{gi + 1}. {g.group}</div>
+              <div className="space-y-1.5">
+                {g.items.map((item) => {
+                  runningIdx++;
+                  const idx = runningIdx;
+                  return (
+                    <div key={idx} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg">
+                      <div className="flex-1 text-sm text-slate-700">{item}</div>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <button key={n} onClick={() => setScore(idx, n)}
+                            className={cls('w-7 h-7 rounded text-xs font-semibold',
+                              data.scores[idx] === n ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>{n}</button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+            <div className="text-sm font-medium text-emerald-900">Rata-rata Skor Evaluasi Level 3</div>
+            <div className="text-2xl font-bold text-emerald-700">{avg}</div>
+          </div>
+        </section>
+
+        <section>
+          <h4 className="font-semibold text-slate-900 mb-2">Evaluasi Rencana Implementasi Hasil Pelatihan</h4>
+          <div className="space-y-2">
+            {data.implementasi.map((r, i) => (
+              <div key={i} className="grid grid-cols-12 gap-2">
+                <Input className="col-span-3" placeholder="Rencana Kerja" value={r.rencana} onChange={(e) => setImpl(i, 'rencana', e.target.value)} />
+                <Input className="col-span-3" placeholder="Tujuan" value={r.tujuan} onChange={(e) => setImpl(i, 'tujuan', e.target.value)} />
+                <Input className="col-span-3" placeholder="Hasil & Rencana Tindakan" value={r.tindakan} onChange={(e) => setImpl(i, 'tindakan', e.target.value)} />
+                <Input className="col-span-3" placeholder="Hasil yang Diharapkan" value={r.hasil} onChange={(e) => setImpl(i, 'hasil', e.target.value)} />
+              </div>
+            ))}
+            <Button size="sm" variant="secondary" icon={Plus} onClick={() => setData(d => ({ ...d, implementasi: [...d.implementasi, { rencana: '', tujuan: '', tindakan: '', hasil: '' }] }))}>Tambah Baris</Button>
+          </div>
+        </section>
+
+        <section>
+          <h4 className="font-semibold text-slate-900 mb-2">Start–Stop–Continue Plan</h4>
+          <div className="grid md:grid-cols-3 gap-3">
+            <Textarea label="STOP" rows={3} value={data.stop} onChange={(e) => setData(d => ({ ...d, stop: e.target.value }))} placeholder="Hal yang perlu dihentikan" />
+            <Textarea label="START" rows={3} value={data.start} onChange={(e) => setData(d => ({ ...d, start: e.target.value }))} placeholder="Hal yang mulai dilakukan" />
+            <Textarea label="CONTINUE" rows={3} value={data.continueText} onChange={(e) => setData(d => ({ ...d, continueText: e.target.value }))} placeholder="Hal yang perlu dilanjutkan" />
+          </div>
+        </section>
+      </div>
+    </Modal>
+  );
+}
+
+// =====================================================================
+// VIEW — KNOWLEDGE MANAGEMENT (4 Pilar)
+// =====================================================================
+
+function KMView({ user, employees, sme, setSme, knowledgeAssets, setKnowledgeAssets, cop, setCop, proposals }) {
+  const [pilar, setPilar] = useState('sme');
+
+  const completedTrainings = proposals.filter(p => p.stage === 'completed' || p.stage === 'evaluated');
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Knowledge Management</h1>
+        <p className="text-sm text-slate-500 mt-1">4 pilar sesuai Prosedur Tetap Manajemen Pengetahuan BPKH</p>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { key: 'sme',   label: 'SME Directory',     icon: Users,        color: 'from-blue-500 to-indigo-600',     count: sme.length,           desc: 'Subject Matter Experts' },
+          { key: 'kmap',  label: 'Knowledge Map',     icon: Network,      color: 'from-emerald-500 to-teal-600',    count: Object.keys(CATEGORIES).length, desc: 'Pemetaan & gap analysis' },
+          { key: 'cop',   label: 'Community of Practice', icon: MessageSquare, color: 'from-purple-500 to-fuchsia-600', count: cop.length,        desc: 'Komunitas praktik' },
+          { key: 'asset', label: 'Knowledge Asset',   icon: Database,     color: 'from-amber-500 to-orange-600',    count: knowledgeAssets.length, desc: 'Aset pengetahuan' },
+        ].map(p => (
+          <button key={p.key} onClick={() => setPilar(p.key)}
+            className={cls('p-4 rounded-xl border text-left transition-all',
+              pilar === p.key ? 'border-emerald-500 bg-emerald-50 shadow' : 'border-slate-200 bg-white hover:border-emerald-300 hover:shadow-sm')}>
+            <div className={cls('w-10 h-10 rounded-lg bg-gradient-to-br flex items-center justify-center mb-3', p.color)}>
+              <p.icon className="w-5 h-5 text-white" />
+            </div>
+            <div className="font-semibold text-slate-900">{p.label}</div>
+            <div className="text-xs text-slate-500 mt-0.5">{p.desc}</div>
+            <div className="text-2xl font-bold text-slate-900 mt-2">{p.count}</div>
+          </button>
+        ))}
+      </div>
+
+      {pilar === 'sme' && (
+        <Card title="Subject Matter Expert (SME) Directory" subtitle="Pegawai dengan keahlian terverifikasi">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-xs text-slate-600">
-                <tr>
-                  <th className="text-left px-4 py-2.5 font-medium">Judul & Pegawai</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Jenis</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Tanggal</th>
-                  <th className="text-right px-4 py-2.5 font-medium">Biaya</th>
-                  <th className="text-left px-4 py-2.5 font-medium">Status</th>
-                  <th className="text-right px-4 py-2.5 font-medium">Aksi</th>
-                </tr>
+              <thead className="text-xs text-slate-500 uppercase">
+                <tr><th className="text-left py-2">Nama</th><th className="text-left py-2">Bidang</th><th className="text-left py-2">Level</th><th className="text-left py-2">Sertifikasi</th><th className="text-left py-2">Sponsor</th></tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filtered.map(pg => {
-                  const peg = findPegawai(data, pg.pegawaiId);
-                  const stat = PENGAJUAN_STATUS[pg.status];
+              <tbody>
+                {sme.map(s => {
+                  const emp = employees.find(e => e.id === s.employeeId);
+                  const sp = employees.find(e => e.id === s.sponsor);
                   return (
-                    <tr key={pg.id} className="hover:bg-slate-50/50">
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-slate-800">{pg.judul}</div>
-                        <div className="text-xs text-slate-500">{peg?.nama} · {peg?.divisi}</div>
+                    <tr key={s.id} className="border-t border-slate-100">
+                      <td className="py-2.5">
+                        <div className="font-medium text-slate-900">{emp?.nama || '-'}</div>
+                        <div className="text-xs text-slate-500">{emp?.divisi}</div>
                       </td>
-                      <td className="px-4 py-3 text-xs text-slate-600">{pg.jenis}</td>
-                      <td className="px-4 py-3 text-xs text-slate-600">{formatDate(pg.tanggalMulai)}</td>
-                      <td className="px-4 py-3 text-xs text-slate-700 text-right font-mono">{formatIDR(pg.biaya)}</td>
-                      <td className="px-4 py-3"><Badge className={stat.color}>{stat.label}</Badge></td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="inline-flex gap-1">
-                          <button onClick={() => setViewing(pg)} className="p-1 hover:bg-slate-100 rounded text-slate-500" title="Lihat detail">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => { setEditing(pg); setModalOpen(true); }} className="p-1 hover:bg-slate-100 rounded text-slate-500" title="Edit">
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDelete(pg.id)} className="p-1 hover:bg-rose-50 rounded text-rose-500" title="Hapus">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                      <td className="py-2.5">{s.bidang}</td>
+                      <td className="py-2.5"><Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">{s.level}</Badge></td>
+                      <td className="py-2.5 text-slate-700">{s.sertifikasi}</td>
+                      <td className="py-2.5 text-slate-700">{sp?.nama || '-'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {pilar === 'kmap' && (
+        <Card title="Knowledge Map BPKH" subtitle="Pemetaan kompetensi per kategori dengan gap analysis sederhana">
+          <div className="grid md:grid-cols-2 gap-4">
+            {Object.entries(CATEGORIES).map(([code, cat]) => {
+              const trainingCount = completedTrainings.filter(p => p.kategori === code).length;
+              const target = code === 'K1' || code === 'K2' ? 20 : code === 'K3' || code === 'K4' ? 15 : 5;
+              const gap = Math.max(0, target - trainingCount);
+              const fillment = Math.min(100, (trainingCount / target) * 100);
+              return (
+                <div key={code} className="p-3 border border-slate-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className={cls('w-8 h-8 rounded-md flex items-center justify-center text-white text-xs font-bold', cat.chip)}>{code}</span>
+                      <div className="text-sm font-medium text-slate-900">{cat.short}</div>
+                    </div>
+                    <Badge className={gap > 5 ? 'bg-rose-50 text-rose-700 border-rose-200' : gap > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}>
+                      Gap: {gap}
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-slate-500 mb-1">{trainingCount} dari {target} target</div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div className={cls('h-full', cat.chip)} style={{ width: `${fillment}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {pilar === 'cop' && (
+        <Card title="Community of Practice (CoP)" subtitle="Forum diskusi & praktik bidang spesifik">
+          <div className="grid md:grid-cols-2 gap-3">
+            {cop.map(c => (
+              <div key={c.id} className="p-4 border border-slate-200 rounded-lg">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <div className="font-semibold text-slate-900">{c.nama}</div>
+                    <div className="text-xs text-slate-500">Sponsor: {employees.find(e => e.id === c.sponsor)?.nama || '-'}</div>
+                  </div>
+                  <Badge className={c.status === 'aktif' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}>{c.status}</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div className="p-2 bg-slate-50 rounded">
+                    <div className="text-xs text-slate-500">Anggota</div>
+                    <div className="text-lg font-bold text-slate-900">{c.anggota}</div>
+                  </div>
+                  <div className="p-2 bg-slate-50 rounded">
+                    <div className="text-xs text-slate-500">Engagement</div>
+                    <div className="text-lg font-bold text-emerald-700">{c.engagement}%</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {pilar === 'asset' && (
+        <Card title="Knowledge Asset" subtitle="Aset pengetahuan organisasi (pedoman, best practice, lessons learned)"
+          action={user.role === ROLES.ADMIN && <Button size="sm" icon={Plus} onClick={() => {
+            const judul = prompt('Judul Knowledge Asset?');
+            if (judul) setKnowledgeAssets([...knowledgeAssets, { id: uid('KA'), judul, tipe: 'Pedoman', pemilik: user.divisi, tahun: new Date().getFullYear() }]);
+          }}>Tambah Asset</Button>}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs text-slate-500 uppercase">
+                <tr><th className="text-left py-2">Judul</th><th className="text-left py-2">Tipe</th><th className="text-left py-2">Pemilik</th><th className="text-left py-2">Tahun</th></tr>
+              </thead>
+              <tbody>
+                {knowledgeAssets.map(a => (
+                  <tr key={a.id} className="border-t border-slate-100">
+                    <td className="py-2.5 font-medium text-slate-900">{a.judul}</td>
+                    <td className="py-2.5"><Badge className="bg-blue-50 text-blue-700 border-blue-200">{a.tipe}</Badge></td>
+                    <td className="py-2.5 text-slate-700">{a.pemilik}</td>
+                    <td className="py-2.5 text-slate-600">{a.tahun}</td>
+                  </tr>
+                ))}
+                {knowledgeAssets.length === 0 && <tr><td colSpan={4}><EmptyState icon={Database} title="Belum ada Knowledge Asset" /></td></tr>}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+            <Lightbulb className="w-4 h-4 inline mr-1" />
+            Setiap pelatihan yang selesai otomatis menambah Knowledge Asset baru dari materi yang diunggah (closed-loop dari Laporan Pelaksanaan).
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// =====================================================================
+// VIEW — TALENT MANAGEMENT (3 Stage)
+// =====================================================================
+
+function TMSView({ user, employees, proposals }) {
+  const [stage, setStage] = useState('acquisition');
+
+  // 9-Box Mock Data — gunakan distribusi pegawai berdasarkan jumlah pelatihan & 'performance' sederhana
+  const trainingCount = (eid) => proposals.filter(p =>
+    (p.stage === 'completed' || p.stage === 'evaluated') && p.peserta?.some(x => x.id === eid)
+  ).length;
+
+  const gridData = employees.filter(e => e.role === ROLES.PEGAWAI && e.status === 'aktif').map(e => {
+    const tc = trainingCount(e.id);
+    const perf = Math.min(2, Math.floor(Math.random() * 3));   // mock 0-2
+    const pot = Math.min(2, Math.floor(tc / 2) + Math.floor(Math.random() * 2)); // potential
+    return { emp: e, performance: perf, potential: pot };
+  });
+
+  const boxes = [];
+  for (let p = 2; p >= 0; p--) {
+    for (let f = 0; f <= 2; f++) {
+      boxes.push({ pot: p, perf: f, list: gridData.filter(g => g.potential === p && g.performance === f) });
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Talent Management System</h1>
+        <p className="text-sm text-slate-500 mt-1">3-Stage: Acquisition → Development → Alignment</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { key: 'acquisition', label: 'Stage 1 — Acquisition', desc: '9-Box Talent Grid & Identifikasi', icon: Users,      color: 'from-blue-500 to-indigo-600' },
+          { key: 'development', label: 'Stage 2 — Development', desc: 'Rencana Pengembangan & IDP',     icon: TrendingUp, color: 'from-emerald-500 to-teal-600' },
+          { key: 'alignment',   label: 'Stage 3 — Alignment',   desc: 'Suksesi & Career Path',          icon: Target,     color: 'from-purple-500 to-fuchsia-600' },
+        ].map(s => (
+          <button key={s.key} onClick={() => setStage(s.key)}
+            className={cls('p-4 rounded-xl border text-left transition-all',
+              stage === s.key ? 'border-emerald-500 bg-emerald-50 shadow' : 'border-slate-200 bg-white hover:border-emerald-300')}>
+            <div className={cls('w-10 h-10 rounded-lg bg-gradient-to-br flex items-center justify-center mb-2', s.color)}>
+              <s.icon className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-sm font-semibold text-slate-900">{s.label}</div>
+            <div className="text-xs text-slate-500 mt-0.5">{s.desc}</div>
+          </button>
+        ))}
+      </div>
+
+      {stage === 'acquisition' && (
+        <Card title="9-Box Talent Grid" subtitle="Performance × Potential — pegawai berdasarkan kombinasi kinerja & pengembangan diri">
+          <div className="grid grid-cols-3 gap-2">
+            {boxes.map((b, i) => {
+              const label = (() => {
+                const tier = ['Underperformer', 'Solid', 'Star'][b.perf] || '';
+                const prefix = ['Limited', 'Core', 'High-Po'][b.pot] || '';
+                return `${prefix} ${tier}`;
+              })();
+              const tone = (b.pot + b.perf) >= 3 ? 'bg-emerald-50 border-emerald-300' :
+                           (b.pot + b.perf) >= 2 ? 'bg-blue-50 border-blue-200' :
+                           (b.pot + b.perf) >= 1 ? 'bg-amber-50 border-amber-200' : 'bg-rose-50 border-rose-200';
+              return (
+                <div key={i} className={cls('p-3 border-2 rounded-lg min-h-[120px]', tone)}>
+                  <div className="text-[10px] font-bold uppercase text-slate-600 mb-1.5">{label}</div>
+                  <div className="space-y-1">
+                    {b.list.slice(0, 3).map(g => (
+                      <div key={g.emp.id} className="text-xs bg-white/80 rounded px-1.5 py-0.5 truncate">{g.emp.nama}</div>
+                    ))}
+                    {b.list.length > 3 && <div className="text-[10px] text-slate-500">+ {b.list.length - 3} lainnya</div>}
+                    {b.list.length === 0 && <div className="text-[10px] text-slate-400 italic">kosong</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-3 text-xs text-slate-500">
+            Sumbu Horizontal (kiri → kanan): Performance — Underperformer / Solid / Star.<br/>
+            Sumbu Vertikal (bawah → atas): Potential — Limited / Core / High-Po.
+          </div>
+        </Card>
+      )}
+
+      {stage === 'development' && (
+        <Card title="Rencana Pengembangan Individu (IDP)" subtitle="Mapping pelatihan ke kebutuhan kompetensi pegawai">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs text-slate-500 uppercase">
+                <tr><th className="text-left py-2">Pegawai</th><th className="text-left py-2">Divisi</th><th className="text-center py-2">Pelatihan Selesai</th><th className="text-left py-2">Status IDP</th></tr>
+              </thead>
+              <tbody>
+                {employees.filter(e => e.role === ROLES.PEGAWAI && e.status === 'aktif').map(e => {
+                  const tc = trainingCount(e.id);
+                  return (
+                    <tr key={e.id} className="border-t border-slate-100">
+                      <td className="py-2.5 font-medium text-slate-900">{e.nama}</td>
+                      <td className="py-2.5 text-slate-700">{e.divisi}</td>
+                      <td className="py-2.5 text-center font-semibold">{tc}</td>
+                      <td className="py-2.5">
+                        <Badge className={tc >= 3 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : tc >= 1 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-rose-50 text-rose-700 border-rose-200'}>
+                          {tc >= 3 ? 'On Track' : tc >= 1 ? 'Mulai Berkembang' : 'Perlu Perhatian'}
+                        </Badge>
                       </td>
                     </tr>
                   );
@@ -1161,2319 +2624,217 @@ const PengajuanModule = ({ data, onUpdate, showToast }) => {
               </tbody>
             </table>
           </div>
-        )}
-      </Card>
+        </Card>
+      )}
 
-      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setEditing(null); }}
-        title={editing ? 'Edit Pengajuan' : 'Pengajuan Pelatihan Baru'} size="lg">
-        <PengajuanForm data={data} initial={editing} onSave={handleSave} onCancel={() => { setModalOpen(false); setEditing(null); }} />
-      </Modal>
-
-      <Modal open={!!viewing} onClose={() => setViewing(null)} title="Detail Pengajuan" size="lg">
-        {viewing && (() => {
-          const peg = findPegawai(data, viewing.pegawaiId);
-          return (
-            <div className="p-5 space-y-4">
-              <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
-                <Avatar nama={peg?.nama || '??'} size="lg" />
-                <div className="flex-1">
-                  <div className="text-base font-semibold text-slate-800">{viewing.judul}</div>
-                  <div className="text-sm text-slate-600">{peg?.nama} · {peg?.jabatan}</div>
-                  <div className="text-xs text-slate-500">{peg?.divisi}</div>
-                </div>
-                <Badge className={PENGAJUAN_STATUS[viewing.status].color}>{PENGAJUAN_STATUS[viewing.status].label}</Badge>
-              </div>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><span className="text-xs text-slate-500 block">Jenis</span><span className="font-medium">{viewing.jenis}</span></div>
-                <div><span className="text-xs text-slate-500 block">Penyelenggara</span><span className="font-medium">{viewing.penyelenggara || '-'}</span></div>
-                <div><span className="text-xs text-slate-500 block">Tanggal Mulai</span><span className="font-medium">{formatDate(viewing.tanggalMulai)}</span></div>
-                <div><span className="text-xs text-slate-500 block">Tanggal Selesai</span><span className="font-medium">{formatDate(viewing.tanggalSelesai)}</span></div>
-                <div className="col-span-2"><span className="text-xs text-slate-500 block">Biaya</span><span className="font-medium text-emerald-700">{formatIDR(viewing.biaya)}</span></div>
-                <div className="col-span-2"><span className="text-xs text-slate-500 block">Alasan / Justifikasi</span><span className="text-sm text-slate-700">{viewing.alasan}</span></div>
-              </div>
-              <div className="pt-3 border-t border-slate-100">
-                <div className="text-xs font-medium text-slate-600 mb-2">Workflow Approval</div>
-                <div className="flex flex-wrap gap-2">
-                  {viewing.status !== 'approved' && viewing.status !== 'completed' && (
-                    <Button variant="primary" icon={CheckCircle} size="sm" onClick={() => handleStatusChange(viewing.id, 'approved')}>Setujui</Button>
-                  )}
-                  {viewing.status === 'pending' && (
-                    <Button size="sm" onClick={() => handleStatusChange(viewing.id, 'review')}>Kirim ke HR Review</Button>
-                  )}
-                  {viewing.status === 'approved' && (
-                    <Button size="sm" icon={Award} onClick={() => handleStatusChange(viewing.id, 'completed')}>Tandai Selesai</Button>
-                  )}
-                  {viewing.status !== 'rejected' && viewing.status !== 'completed' && (
-                    <Button variant="danger" icon={XCircle} size="sm" onClick={() => handleStatusChange(viewing.id, 'rejected')}>Tolak</Button>
-                  )}
-                </div>
-              </div>
-
-              {viewing.status === 'completed' && (
-                <div className="pt-3 border-t border-slate-100">
-                  {isHarvested(viewing.id) ? (
-                    <div className="flex items-center gap-2 p-2.5 bg-emerald-50 rounded-md text-xs text-emerald-800">
-                      <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                      Lessons learned dari pelatihan ini sudah di-harvest menjadi Knowledge Asset.
+      {stage === 'alignment' && (
+        <Card title="Succession & Career Path" subtitle="Posisi kritikal & calon pengganti">
+          <div className="space-y-3">
+            {[
+              { posisi: 'Kadiv Keuangan',      pemegang: 'E004', kandidat: ['E005'] },
+              { posisi: 'Kadiv Investasi',     pemegang: 'E007', kandidat: ['E006'] },
+              { posisi: 'Kadiv Pengembangan SDM', pemegang: 'E002', kandidat: ['E003'] },
+            ].map((s, i) => {
+              const inc = employees.find(e => e.id === s.pemegang);
+              const cands = s.kandidat.map(id => employees.find(e => e.id === id)).filter(Boolean);
+              return (
+                <div key={i} className="p-3 border border-slate-200 rounded-lg">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="text-xs text-slate-500">Posisi</div>
+                      <div className="font-semibold text-slate-900">{s.posisi}</div>
                     </div>
-                  ) : (
-                    <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-md">
-                      <Lightbulb className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <div className="text-xs font-medium text-amber-900">Harvest Lessons Learned</div>
-                        <div className="text-[11px] text-amber-700 mb-2">Tangkap insight dari pelatihan ini supaya bisa dipakai pegawai lain. Hasilnya jadi Knowledge Asset.</div>
-                        <Button size="sm" variant="primary" icon={Lightbulb} onClick={() => { setHarvestFor(viewing); setViewing(null); }}>Mulai Harvest</Button>
-                      </div>
+                    <div>
+                      <div className="text-xs text-slate-500 text-right">Incumbent</div>
+                      <div className="font-medium text-slate-900">{inc?.nama || '-'}</div>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })()}
-      </Modal>
-
-      <Modal open={!!harvestFor} onClose={() => setHarvestFor(null)} title="Harvest Lessons Learned" size="lg">
-        {harvestFor && (
-          <div className="p-5 space-y-3">
-            <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-md">
-              <b>Pelatihan:</b> {harvestFor.judul}<br />
-              <b>Peserta:</b> {findPegawai(data, harvestFor.pegawaiId)?.nama}<br />
-              <b>Penyelenggara:</b> {harvestFor.penyelenggara || '-'}
-            </div>
-            <Textarea label="Ringkasan Pelatihan *" value={harvestForm.summary}
-              onChange={e => setHarvestForm({ ...harvestForm, summary: e.target.value })}
-              placeholder="Apa yang dipelajari, apa yang menarik, materi apa yang paling penting..." />
-            <Textarea label="Key Takeaways (3-5 poin kunci)" value={harvestForm.keyTakeaways}
-              onChange={e => setHarvestForm({ ...harvestForm, keyTakeaways: e.target.value })}
-              placeholder="• Poin penting 1&#10;• Poin penting 2&#10;• ..." />
-            <Textarea label="Rekomendasi untuk BPKH" value={harvestForm.recommendation}
-              onChange={e => setHarvestForm({ ...harvestForm, recommendation: e.target.value })}
-              placeholder="Bagaimana ini bisa diterapkan di BPKH? Siapa yang perlu tahu? Quick-win apa?" />
-            <div className="text-[11px] text-slate-600 bg-blue-50 p-2 rounded-md flex items-start gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <span>Hasil harvest akan otomatis dipublish sebagai Knowledge Asset (tipe: Lesson Learned), tagged dengan jenis pelatihan & divisi peserta.</span>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="ghost" onClick={() => setHarvestFor(null)}>Batal</Button>
-              <Button variant="primary" icon={Save} onClick={submitHarvest}>Publish Lessons Learned</Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-    </div>
-  );
-};
-
-// =================================================================================
-// MODULE: PEGAWAI
-// =================================================================================
-
-const PegawaiModule = ({ data, showToast }) => {
-  const [search, setSearch] = useState('');
-  const [divFilter, setDivFilter] = useState('all');
-  const [viewing, setViewing] = useState(null);
-
-  const filtered = useMemo(() =>
-    data.pegawai.filter(p => {
-      const matchSearch = !search || p.nama.toLowerCase().includes(search.toLowerCase()) || p.jabatan.toLowerCase().includes(search.toLowerCase());
-      const matchDiv = divFilter === 'all' || p.divisi === divFilter;
-      return matchSearch && matchDiv;
-    })
-  , [data, search, divFilter]);
-
-  const getSME = (id) => data.sme.find(s => s.pegawaiId === id);
-  const getTalent = (id) => data.talentPool.find(t => t.pegawaiId === id);
-
-  return (
-    <div className="p-5">
-      <Card padding="p-0">
-        <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 bg-slate-100 rounded-md px-3 py-1.5 flex-1 min-w-0 max-w-xs">
-            <Search className="w-4 h-4 text-slate-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari nama/jabatan..."
-              className="bg-transparent outline-none text-sm w-full" />
-          </div>
-          <Select value={divFilter} onChange={e => setDivFilter(e.target.value)}
-            options={[{ value: 'all', label: 'Semua Divisi' }, ...DIVISI_LIST.map(d => ({ value: d, label: d }))]} />
-          <div className="ml-auto text-xs text-slate-500">{filtered.length} dari {data.pegawai.length} pegawai</div>
-        </div>
-        <div className="divide-y divide-slate-100">
-          {filtered.map(p => {
-            const sme = getSME(p.id);
-            const talent = getTalent(p.id);
-            return (
-              <button key={p.id} onClick={() => setViewing(p)}
-                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left">
-                <Avatar nama={p.nama} />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-slate-800">{p.nama}</div>
-                  <div className="text-xs text-slate-500 truncate">{p.jabatan} · {p.divisi}</div>
-                </div>
-                <div className="hidden sm:flex items-center gap-2">
-                  {sme && <Badge className="bg-violet-100 text-violet-800"><Award className="w-3 h-3" />{SME_LEVEL[sme.level].label}</Badge>}
-                  {talent && <Badge className="bg-amber-100 text-amber-800"><Star className="w-3 h-3" />Talent Pool</Badge>}
-                </div>
-                <div className="text-right text-xs">
-                  <div className="text-slate-700 font-medium">{p.performance.toFixed(1)}</div>
-                  <div className="text-slate-400">Kinerja</div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </Card>
-
-      <Modal open={!!viewing} onClose={() => setViewing(null)} title="Detail Pegawai" size="lg">
-        {viewing && (() => {
-          const sme = getSME(viewing.id);
-          const talent = getTalent(viewing.id);
-          const pengajuanPeg = data.pengajuan.filter(pg => pg.pegawaiId === viewing.id);
-          return (
-            <div className="p-5 space-y-4">
-              <div className="flex items-start gap-4 pb-4 border-b border-slate-100">
-                <Avatar nama={viewing.nama} size="lg" />
-                <div className="flex-1">
-                  <div className="text-lg font-semibold text-slate-800">{viewing.nama}</div>
-                  <div className="text-sm text-slate-600">{viewing.jabatan}</div>
-                  <div className="text-xs text-slate-500 mt-0.5">NIP: {viewing.nip} · {viewing.email}</div>
-                  <div className="flex gap-1 mt-2">
-                    {sme && <Badge className="bg-violet-100 text-violet-800"><Award className="w-3 h-3" />SME {SME_LEVEL[sme.level].label}</Badge>}
-                    {talent && <Badge className="bg-amber-100 text-amber-800"><Star className="w-3 h-3" />Talent Pool</Badge>}
                   </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Card padding="p-3" className="!bg-emerald-50 !border-emerald-100">
-                  <div className="text-xs text-emerald-700">Performance Score</div>
-                  <div className="text-2xl font-semibold text-emerald-800">{viewing.performance.toFixed(1)}<span className="text-sm text-emerald-600"> / 5</span></div>
-                </Card>
-                <Card padding="p-3" className="!bg-blue-50 !border-blue-100">
-                  <div className="text-xs text-blue-700">Kompetensi Score</div>
-                  <div className="text-2xl font-semibold text-blue-800">{viewing.kompetensi.toFixed(1)}<span className="text-sm text-blue-600"> / 5</span></div>
-                </Card>
-              </div>
-              {sme && (
-                <div>
-                  <div className="text-xs font-medium text-slate-600 mb-1.5">Domain Keahlian (SME)</div>
-                  <div className="text-sm text-slate-800">{sme.domain}</div>
-                  <div className="flex gap-1 mt-2 flex-wrap">
-                    {sme.sertifikasi.map(c => <Badge key={c} className="bg-violet-50 text-violet-700">{c}</Badge>)}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">{sme.kontribusi} kontribusi knowledge sharing</div>
-                </div>
-              )}
-              <div>
-                <div className="text-xs font-medium text-slate-600 mb-1.5">Riwayat Pelatihan ({pengajuanPeg.length})</div>
-                {pengajuanPeg.length === 0 ? (
-                  <div className="text-xs text-slate-500 italic">Belum ada riwayat pelatihan</div>
-                ) : (
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                    {pengajuanPeg.map(pg => (
-                      <div key={pg.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-md">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-medium text-slate-700 truncate">{pg.judul}</div>
-                          <div className="text-[10px] text-slate-500">{formatDate(pg.tanggalMulai)}</div>
-                        </div>
-                        <Badge className={PENGAJUAN_STATUS[pg.status].color}>{PENGAJUAN_STATUS[pg.status].label}</Badge>
+                  <div className="text-xs font-semibold text-slate-500 uppercase mb-1">Kandidat Suksesi</div>
+                  <div className="flex gap-2 flex-wrap">
+                    {cands.map(c => (
+                      <div key={c.id} className="px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-xs">
+                        <span className="font-medium text-emerald-900">{c.nama}</span>
+                        <span className="text-emerald-700"> · {trainingCount(c.id)} pelatihan</span>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
-      </Modal>
-    </div>
-  );
-};
-
-// =================================================================================
-// MODULE: SME DIRECTORY
-// =================================================================================
-
-const SMEModule = ({ data, onUpdate, showToast }) => {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ pegawaiId: '', domain: '', level: 'mid', sertifikasi: '' });
-
-  const handleSave = () => {
-    if (!form.pegawaiId || !form.domain) {
-      showToast('Lengkapi pegawai & domain', 'error');
-      return;
-    }
-    const newSME = {
-      id: uid('sme'), pegawaiId: form.pegawaiId, domain: form.domain, level: form.level,
-      sertifikasi: form.sertifikasi.split(',').map(s => s.trim()).filter(Boolean),
-      kontribusi: 0,
-    };
-    onUpdate({ ...data, sme: [...data.sme, newSME] });
-    showToast('SME berhasil ditambahkan');
-    setModalOpen(false);
-    setForm({ pegawaiId: '', domain: '', level: 'mid', sertifikasi: '' });
-  };
-
-  const availablePegawai = data.pegawai.filter(p => !data.sme.find(s => s.pegawaiId === p.id));
-
-  return (
-    <div className="p-5 space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h2 className="text-base font-semibold text-slate-800">SME Development</h2>
-          <p className="text-xs text-slate-500">Pengembangan Subject Matter Expert per domain keahlian</p>
-        </div>
-        <Button variant="primary" icon={UserPlus} onClick={() => setModalOpen(true)}>Tambah SME</Button>
-      </div>
-
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {data.sme.map(sme => {
-          const peg = findPegawai(data, sme.pegawaiId);
-          if (!peg) return null;
-          const lvl = SME_LEVEL[sme.level];
-          return (
-            <Card key={sme.id}>
-              <div className="flex items-start gap-3 mb-3">
-                <Avatar nama={peg.nama} />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-slate-800 truncate">{peg.nama}</div>
-                  <div className="text-xs text-slate-500 truncate">{peg.jabatan}</div>
-                </div>
-                <Badge className="bg-violet-100 text-violet-800">{lvl.label}</Badge>
-              </div>
-              <div className="text-xs text-slate-600 mb-2">{sme.domain}</div>
-              <div className="flex items-center gap-1 mb-3">
-                {[1,2,3,4,5].map(i => (
-                  <div key={i} className={`w-2 h-2 rounded-full ${i <= lvl.dots ? lvl.color : 'bg-slate-200'}`} />
-                ))}
-                <span className="text-[10px] text-slate-500 ml-1">{sme.kontribusi} kontribusi</span>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {sme.sertifikasi.slice(0, 4).map(c => <Badge key={c} className="bg-violet-50 text-violet-700">{c}</Badge>)}
-                {sme.sertifikasi.length > 4 && <Badge>+{sme.sertifikasi.length - 4}</Badge>}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Tambah SME Baru">
-        <div className="p-5 space-y-3">
-          <Select label="Pegawai *" value={form.pegawaiId} onChange={e => setForm({ ...form, pegawaiId: e.target.value })}
-            options={[{ value: '', label: 'Pilih pegawai...' }, ...availablePegawai.map(p => ({ value: p.id, label: p.nama }))]} />
-          <Input label="Domain Keahlian *" value={form.domain} onChange={e => setForm({ ...form, domain: e.target.value })}
-            placeholder="contoh: GRC, Audit Internal" />
-          <Select label="Level Expertise" value={form.level} onChange={e => setForm({ ...form, level: e.target.value })}
-            options={Object.entries(SME_LEVEL).map(([v, l]) => ({ value: v, label: l.label }))} />
-          <Input label="Sertifikasi (pisahkan dengan koma)" value={form.sertifikasi}
-            onChange={e => setForm({ ...form, sertifikasi: e.target.value })} placeholder="CISA, CISM, CISSP" />
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setModalOpen(false)}>Batal</Button>
-            <Button variant="primary" icon={Save} onClick={handleSave}>Simpan</Button>
-          </div>
-        </div>
-      </Modal>
-    </div>
-  );
-};
-
-// =================================================================================
-// MODULE: KNOWLEDGE MAP
-// =================================================================================
-
-const KnowledgeMapModule = ({ data }) => {
-  const domains = useMemo(() => {
-    const domainMap = {};
-    data.sme.forEach(s => {
-      s.domain.split(',').map(d => d.trim()).forEach(d => {
-        if (!domainMap[d]) domainMap[d] = { count: 0, smeIds: [] };
-        domainMap[d].count++;
-        domainMap[d].smeIds.push(s.pegawaiId);
-      });
-    });
-    return Object.entries(domainMap).map(([name, info]) => ({
-      name, count: info.count,
-      status: info.count >= 2 ? 'matang' : info.count === 1 ? 'berkembang' : 'gap',
-    })).sort((a, b) => b.count - a.count);
-  }, [data]);
-
-  const statusColors = {
-    matang: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    berkembang: 'bg-amber-100 text-amber-800 border-amber-200',
-    gap: 'bg-rose-100 text-rose-800 border-rose-200',
-  };
-
-  return (
-    <div className="p-5 space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-slate-800">Knowledge Map</h2>
-        <p className="text-xs text-slate-500">Pemetaan domain pengetahuan & identifikasi gap</p>
-      </div>
-
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Domain Matang" value={domains.filter(d => d.status === 'matang').length} icon={CheckCircle} color="emerald" delta="≥ 2 SME per domain" />
-        <StatCard label="Domain Berkembang" value={domains.filter(d => d.status === 'berkembang').length} icon={AlertCircle} color="amber" delta="1 SME, perlu mentoring" />
-        <StatCard label="Gap Domain" value={domains.filter(d => d.status === 'gap').length} icon={AlertTriangle} color="rose" delta="Belum ada SME" />
-      </div>
-
-      <Card>
-        <h3 className="text-sm font-semibold text-slate-800 mb-3">Distribusi Domain Pengetahuan</h3>
-        <div className="space-y-2">
-          {domains.map(d => (
-            <div key={d.name} className={`flex items-center justify-between p-3 rounded-lg border ${statusColors[d.status]}`}>
-              <div className="flex items-center gap-3">
-                <Map className="w-4 h-4" />
-                <span className="text-sm font-medium">{d.name}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs">{d.count} SME</span>
-                <Badge className="bg-white/50 text-current">{d.status}</Badge>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card>
-        <h3 className="text-sm font-semibold text-slate-800 mb-3">Rekomendasi Pengembangan</h3>
-        <div className="space-y-2 text-sm">
-          {domains.filter(d => d.status !== 'matang').slice(0, 3).map(d => (
-            <div key={d.name} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
-              <Sparkles className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div className="text-xs text-slate-700">
-                <span className="font-medium">{d.name}</span> — {d.status === 'gap'
-                  ? 'belum ada SME. Pertimbangkan rekrutmen atau pengembangan internal melalui pelatihan & sertifikasi.'
-                  : 'baru 1 SME. Risiko knowledge concentration; siapkan mentee/backup melalui mentoring program.'}
-              </div>
-            </div>
-          ))}
-          {domains.filter(d => d.status !== 'matang').length === 0 && (
-            <div className="text-xs text-slate-500">Semua domain sudah matang. Pertahankan dengan rotasi & refresh training.</div>
-          )}
-        </div>
-      </Card>
-    </div>
-  );
-};
-
-// =================================================================================
-// MODULE: COMMUNITY OF PRACTICE
-// =================================================================================
-
-const CoPModule = ({ data }) => {
-  return (
-    <div className="p-5 space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-slate-800">Community of Practice</h2>
-        <p className="text-xs text-slate-500">Pengembangan & penguatan komunitas pembelajar</p>
-      </div>
-
-      <div className="grid sm:grid-cols-2 gap-3">
-        {data.cop.map(c => {
-          const lead = findPegawai(data, c.lead);
-          const status = c.engagement > 70 ? 'aktif' : c.engagement > 40 ? 'sedang' : 'perlu-revitalisasi';
-          const colors = {
-            'aktif': 'bg-emerald-500',
-            'sedang': 'bg-amber-500',
-            'perlu-revitalisasi': 'bg-rose-500',
-          };
-          return (
-            <Card key={c.id}>
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <div className="font-semibold text-sm text-slate-800">{c.nama}</div>
-                  <div className="text-xs text-slate-500 mt-0.5">Lead: {lead?.nama}</div>
-                </div>
-                <Badge className="bg-slate-100 text-slate-700"><Users className="w-3 h-3" />{c.anggota}</Badge>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 mb-3">
-                <div className="flex items-center gap-1.5"><MessageCircle className="w-3.5 h-3.5" />{c.diskusiPerBulan} diskusi/bln</div>
-                <div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{c.nextEvent ? formatDate(c.nextEvent) : 'Belum dijadwal'}</div>
-              </div>
-              <div>
-                <div className="flex justify-between text-[11px] mb-1">
-                  <span className="text-slate-500">Engagement</span>
-                  <span className="font-medium text-slate-700">{c.engagement}%</span>
-                </div>
-                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full ${colors[status]}`} style={{ width: `${c.engagement}%` }} />
-                </div>
-              </div>
-              {status === 'perlu-revitalisasi' && (
-                <div className="mt-3 px-2.5 py-1.5 bg-rose-50 text-rose-700 rounded-md text-[11px] flex items-center gap-1.5">
-                  <AlertTriangle className="w-3 h-3" />Perlu revitalisasi
-                </div>
-              )}
-            </Card>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-// =================================================================================
-// MODULE: KNOWLEDGE ASSET
-// =================================================================================
-
-const AssetDetailModal = ({ data, asset, onUpdate, onClose, showToast, onNavigate }) => {
-  const [commentText, setCommentText] = useState('');
-  if (!asset) return null;
-  const t = ASSET_TYPES[asset.type];
-  const Icon = t.icon;
-  const owner = findPegawai(data, asset.owner);
-  const rels = assetRelations(data, asset);
-  const bookmarked = isBookmarked(data, CURRENT_USER_ID, asset.id);
-  const reviewIn = asset.reviewDate ? daysUntil(asset.reviewDate) : null;
-  const ageDays = daysSince(asset.lastViewedAt || asset.createdAt);
-
-  const updateAsset = (patch) => onUpdate({
-    ...data,
-    knowledgeAsset: data.knowledgeAsset.map(a => a.id === asset.id ? { ...a, ...patch } : a),
-  });
-
-  const handleRate = (dir) => updateAsset(dir === 'up'
-    ? { ratingsUp: (asset.ratingsUp || 0) + 1 }
-    : { ratingsDown: (asset.ratingsDown || 0) + 1 });
-
-  const handleBookmark = () => {
-    const list = data.bookmarks || [];
-    onUpdate({
-      ...data,
-      bookmarks: bookmarked
-        ? list.filter(b => !(b.userId === CURRENT_USER_ID && b.assetId === asset.id))
-        : [...list, { id: uid('bm'), userId: CURRENT_USER_ID, assetId: asset.id, createdAt: new Date().toISOString() }],
-    });
-    showToast(bookmarked ? 'Bookmark dihapus' : 'Asset di-bookmark', 'info');
-  };
-
-  const handleComment = () => {
-    if (!commentText.trim()) return;
-    updateAsset({ comments: [...(asset.comments || []), { id: uid('c'), userId: CURRENT_USER_ID, text: commentText, createdAt: new Date().toISOString() }] });
-    setCommentText('');
-    showToast('Komentar ditambahkan');
-  };
-
-  const handleStatusChange = (status) => {
-    updateAsset({ status });
-    showToast(`Status: ${ASSET_STATUS[status].label}`);
-  };
-
-  return (
-    <Modal open={!!asset} onClose={onClose} title="Detail Knowledge Asset" size="xl">
-      <div className="p-5 space-y-4">
-        <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
-          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${t.color}`}>
-            <Icon className="w-6 h-6" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start gap-2 flex-wrap">
-              <h3 className="text-base font-semibold text-slate-800 flex-1 min-w-0">{asset.judul}</h3>
-              <StatusBadge status={asset.status || 'published'} map={ASSET_STATUS} />
-            </div>
-            <div className="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
-              <span>{t.label}</span>
-              <span>·</span>
-              <span>v{asset.version || '1.0'}</span>
-              <span>·</span>
-              <span>Owner: {owner?.nama || 'Unknown'}</span>
-              <span>·</span>
-              <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{asset.views} views</span>
-            </div>
-          </div>
-          <BookmarkBtn active={bookmarked} onToggle={handleBookmark} />
-        </div>
-
-        {reviewIn !== null && reviewIn <= 60 && (
-          <div className={`flex items-start gap-2 p-2.5 rounded-md text-xs ${reviewIn < 0 ? 'bg-rose-50 text-rose-800' : 'bg-amber-50 text-amber-800'}`}>
-            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <div>
-              {reviewIn < 0
-                ? <><span className="font-medium">Review terlewat {Math.abs(reviewIn)} hari yang lalu.</span> Asset mungkin sudah tidak relevan — minta owner untuk update atau archive.</>
-                : <><span className="font-medium">Review jatuh tempo dalam {reviewIn} hari.</span> Pastikan konten masih akurat.</>}
-            </div>
-          </div>
-        )}
-
-        {asset.description && <p className="text-sm text-slate-700 leading-relaxed">{asset.description}</p>}
-
-        <div className="flex flex-wrap gap-1">
-          {asset.tags.map(tag => <Badge key={tag} className="bg-slate-100 text-slate-700"><Tag className="w-3 h-3" />{tag}</Badge>)}
-        </div>
-
-        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-          <Rating up={asset.ratingsUp || 0} down={asset.ratingsDown || 0} onUp={() => handleRate('up')} onDown={() => handleRate('down')} />
-          <div className="flex items-center gap-1">
-            {asset.status !== 'published' && (
-              <Button size="sm" variant="primary" icon={CheckCircle} onClick={() => handleStatusChange('published')}>Publish</Button>
-            )}
-            {asset.status === 'published' && (
-              <Button size="sm" icon={Archive} onClick={() => handleStatusChange('archived')}>Archive</Button>
-            )}
-            {asset.status === 'draft' && (
-              <Button size="sm" icon={Clock} onClick={() => handleStatusChange('review')}>Kirim ke Review</Button>
-            )}
-          </div>
-        </div>
-
-        <div className="pt-3 border-t border-slate-100">
-          <div className="text-xs font-medium text-slate-600 mb-2 flex items-center gap-1.5"><Link2 className="w-3.5 h-3.5" />Relasi Knowledge Graph</div>
-          <div className="grid sm:grid-cols-3 gap-2 text-xs">
-            <div className="p-2.5 bg-violet-50 rounded-md">
-              <div className="text-[10px] font-medium text-violet-700 uppercase tracking-wide mb-1">SME terkait ({rels.smes.length})</div>
-              {rels.smes.length === 0 ? <div className="text-slate-500 italic">Tidak ada</div> : rels.smes.slice(0,3).map(s => {
-                const p = findPegawai(data, s.pegawaiId);
-                return <div key={s.id} className="truncate text-violet-900">· {p?.nama}</div>;
-              })}
-            </div>
-            <div className="p-2.5 bg-blue-50 rounded-md">
-              <div className="text-[10px] font-medium text-blue-700 uppercase tracking-wide mb-1">CoP terkait ({rels.cops.length})</div>
-              {rels.cops.length === 0 ? <div className="text-slate-500 italic">Tidak ada</div> : rels.cops.slice(0,3).map(c =>
-                <div key={c.id} className="truncate text-blue-900">· {c.nama}</div>
-              )}
-            </div>
-            <div className="p-2.5 bg-emerald-50 rounded-md">
-              <div className="text-[10px] font-medium text-emerald-700 uppercase tracking-wide mb-1">Learning Path ({rels.paths.length})</div>
-              {rels.paths.length === 0 ? <div className="text-slate-500 italic">Belum dipakai</div> : rels.paths.slice(0,3).map(p =>
-                <button key={p.id} onClick={() => { onClose(); onNavigate('km-paths'); }} className="block truncate text-emerald-900 hover:underline text-left">· {p.title}</button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="pt-3 border-t border-slate-100">
-          <div className="text-xs font-medium text-slate-600 mb-2 flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5" />Diskusi ({(asset.comments || []).length})</div>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {(asset.comments || []).length === 0 && <div className="text-xs text-slate-500 italic">Belum ada komentar.</div>}
-            {(asset.comments || []).map(c => {
-              const u = findPegawai(data, c.userId);
-              return (
-                <div key={c.id} className="flex gap-2">
-                  <Avatar nama={u?.nama || '??'} size="xs" />
-                  <div className="flex-1 bg-slate-50 rounded-md px-3 py-2">
-                    <div className="text-[11px] font-medium text-slate-700">{u?.nama || 'Unknown'} <span className="text-slate-400 font-normal">· {formatDate(c.createdAt)}</span></div>
-                    <div className="text-xs text-slate-700 mt-0.5">{c.text}</div>
-                  </div>
                 </div>
               );
             })}
-          </div>
-          <div className="mt-2 flex gap-2">
-            <input value={commentText} onChange={e => setCommentText(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleComment()}
-              placeholder="Tulis komentar atau pertanyaan..."
-              className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500" />
-            <Button variant="primary" icon={SendIcon} onClick={handleComment}>Kirim</Button>
-          </div>
-        </div>
-      </div>
-    </Modal>
-  );
-};
-
-const KnowledgeAssetModule = ({ data, onUpdate, showToast, onNavigate }) => {
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [search, setSearch] = useState('');
-  const [sort, setSort] = useState('views');
-  const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ judul: '', type: 'sop', tags: '', owner: '', description: '', reviewMonths: 12 });
-  const [viewing, setViewing] = useState(null);
-
-  const myBookmarks = useMemo(() => new Set(userBookmarks(data, CURRENT_USER_ID).map(b => b.assetId)), [data]);
-
-  const filtered = useMemo(() => {
-    let list = data.knowledgeAsset.slice();
-    if (typeFilter !== 'all') list = list.filter(a => a.type === typeFilter);
-    if (statusFilter !== 'all') list = list.filter(a => (a.status || 'published') === statusFilter);
-    if (showBookmarksOnly) list = list.filter(a => myBookmarks.has(a.id));
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(a => a.judul.toLowerCase().includes(q) || (a.description || '').toLowerCase().includes(q) || a.tags.some(t => t.toLowerCase().includes(q)));
-    }
-    const sorters = {
-      views: (a, b) => b.views - a.views,
-      newest: (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-      rating: (a, b) => ((b.ratingsUp || 0) - (b.ratingsDown || 0)) - ((a.ratingsUp || 0) - (a.ratingsDown || 0)),
-      review: (a, b) => new Date(a.reviewDate || '2099-01-01') - new Date(b.reviewDate || '2099-01-01'),
-    };
-    return list.sort(sorters[sort] || sorters.views);
-  }, [data.knowledgeAsset, typeFilter, statusFilter, showBookmarksOnly, search, sort, myBookmarks]);
-
-  const handleSave = () => {
-    if (!form.judul.trim()) { showToast('Judul wajib diisi', 'error'); return; }
-    const now = new Date();
-    const review = new Date(now); review.setMonth(review.getMonth() + (parseInt(form.reviewMonths) || 12));
-    const newAsset = {
-      id: uid('ka'), judul: form.judul, type: form.type,
-      tags: form.tags.split(',').map(s => s.trim()).filter(Boolean),
-      owner: form.owner || CURRENT_USER_ID, views: 0,
-      description: form.description, status: 'draft', version: '1.0',
-      reviewDate: review.toISOString().split('T')[0],
-      ratingsUp: 0, ratingsDown: 0, comments: [], lastViewedAt: now.toISOString(),
-      createdAt: now.toISOString(),
-    };
-    onUpdate({ ...data, knowledgeAsset: [newAsset, ...data.knowledgeAsset] });
-    showToast('Knowledge asset ditambahkan (draft)');
-    setModalOpen(false);
-    setForm({ judul: '', type: 'sop', tags: '', owner: '', description: '', reviewMonths: 12 });
-  };
-
-  const handleOpenAsset = (asset) => {
-    onUpdate({
-      ...data,
-      knowledgeAsset: data.knowledgeAsset.map(a => a.id === asset.id ? { ...a, views: (a.views || 0) + 1, lastViewedAt: new Date().toISOString() } : a),
-    });
-    setViewing(asset);
-  };
-
-  return (
-    <div className="p-5 space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h2 className="text-base font-semibold text-slate-800">Knowledge Asset</h2>
-          <p className="text-xs text-slate-500">Repositori dengan lifecycle, ratings, bookmarks & knowledge graph</p>
-        </div>
-        <div className="flex gap-2">
-          <Button icon={Bookmark} variant={showBookmarksOnly ? 'primary' : 'default'} onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}>
-            Bookmark Saya ({myBookmarks.size})
-          </Button>
-          <Button variant="primary" icon={Plus} onClick={() => setModalOpen(true)}>Tambah Asset</Button>
-        </div>
-      </div>
-
-      <Card padding="p-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={() => setTypeFilter('all')}
-            className={`px-3 py-1 text-xs font-medium rounded-md ${typeFilter === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
-            Semua ({data.knowledgeAsset.length})
-          </button>
-          {Object.entries(ASSET_TYPES).map(([key, t]) => {
-            const count = data.knowledgeAsset.filter(a => a.type === key).length;
-            const Icon = t.icon;
-            return (
-              <button key={key} onClick={() => setTypeFilter(key)}
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                  typeFilter === key ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}>
-                <Icon className="w-3 h-3" />{t.label} ({count})
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-2 mt-2 flex-wrap">
-          <Select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            options={[{ value: 'all', label: 'Semua status' }, ...Object.entries(ASSET_STATUS).map(([v, s]) => ({ value: v, label: s.label }))]} />
-          <Select value={sort} onChange={e => setSort(e.target.value)}
-            options={[
-              { value: 'views', label: 'Sort: Paling Banyak Dilihat' },
-              { value: 'newest', label: 'Sort: Terbaru' },
-              { value: 'rating', label: 'Sort: Rating Tertinggi' },
-              { value: 'review', label: 'Sort: Review Terdekat' },
-            ]} />
-          <div className="flex items-center gap-2 bg-slate-100 rounded-md px-3 py-1.5 flex-1 min-w-0 max-w-xs ml-auto">
-            <Search className="w-3.5 h-3.5 text-slate-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari judul/deskripsi/tag..."
-              className="bg-transparent outline-none text-xs w-full" />
-          </div>
-        </div>
-      </Card>
-
-      {filtered.length === 0 ? (
-        <Card><EmptyState icon={Database} title="Tidak ada asset" description={showBookmarksOnly ? 'Anda belum bookmark asset apapun.' : 'Coba ubah filter atau tambah asset baru.'} /></Card>
-      ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map(a => {
-            const t = ASSET_TYPES[a.type];
-            const Icon = t.icon;
-            const owner = findPegawai(data, a.owner);
-            const score = (a.ratingsUp || 0) - (a.ratingsDown || 0);
-            const reviewIn = a.reviewDate ? daysUntil(a.reviewDate) : null;
-            const overdue = reviewIn !== null && reviewIn < 0;
-            const due = reviewIn !== null && reviewIn >= 0 && reviewIn <= 30;
-            return (
-              <Card key={a.id} className="hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer relative" >
-                <button onClick={() => handleOpenAsset(a)} className="absolute inset-0 w-full h-full" aria-label="Buka detail" />
-                <div className="relative pointer-events-none">
-                  <div className="flex items-start gap-3 mb-2">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${t.color}`}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm text-slate-800 line-clamp-2">{a.judul}</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1.5">
-                        <span>{t.label}</span><span>·</span><span>v{a.version || '1.0'}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 mb-2 flex-wrap">
-                    <StatusBadge status={a.status || 'published'} map={ASSET_STATUS} />
-                    {overdue && <Badge className="bg-rose-100 text-rose-700"><AlertTriangle className="w-3 h-3" />Review terlewat</Badge>}
-                    {due && !overdue && <Badge className="bg-amber-100 text-amber-700"><Clock className="w-3 h-3" />Review {reviewIn}h</Badge>}
-                  </div>
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {a.tags.slice(0,4).map(tag => <Badge key={tag} className="bg-slate-100 text-slate-700 text-[10px]">{tag}</Badge>)}
-                  </div>
-                  <div className="flex items-center justify-between text-[10px] text-slate-500 pt-2 border-t border-slate-100">
-                    <span className="truncate">{owner?.nama || 'Unknown'}</span>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="flex items-center gap-1"><Eye className="w-3 h-3" />{a.views}</span>
-                      <span className="flex items-center gap-1"><ThumbsUp className="w-3 h-3" />{score >= 0 ? '+' : ''}{score}</span>
-                      {myBookmarks.has(a.id) && <Bookmark className="w-3 h-3 text-amber-500" fill="currentColor" />}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Tambah Knowledge Asset">
-        <div className="p-5 space-y-3">
-          <Input label="Judul Asset *" value={form.judul} onChange={e => setForm({ ...form, judul: e.target.value })}
-            placeholder="contoh: SOP Pengelolaan Risiko v2.0" />
-          <Textarea label="Deskripsi singkat" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-            placeholder="Jelaskan isi & manfaat asset ini..." />
-          <div className="grid grid-cols-2 gap-3">
-            <Select label="Tipe Asset" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
-              options={Object.entries(ASSET_TYPES).map(([v, t]) => ({ value: v, label: t.label }))} />
-            <Select label="Owner" value={form.owner} onChange={e => setForm({ ...form, owner: e.target.value })}
-              options={[{ value: '', label: '(saya sendiri)' }, ...data.pegawai.map(p => ({ value: p.id, label: p.nama }))]} />
-          </div>
-          <Input label="Tags (pisahkan dengan koma)" value={form.tags}
-            onChange={e => setForm({ ...form, tags: e.target.value })} placeholder="Audit, Risk, SOP" />
-          <Select label="Review berikutnya" value={form.reviewMonths} onChange={e => setForm({ ...form, reviewMonths: e.target.value })}
-            options={[{ value: 6, label: '6 bulan' }, { value: 12, label: '12 bulan' }, { value: 24, label: '24 bulan' }]} />
-          <div className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded">Asset baru otomatis berstatus <b>Draft</b>. Publish setelah review owner.</div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setModalOpen(false)}>Batal</Button>
-            <Button variant="primary" icon={Save} onClick={handleSave}>Simpan</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <AssetDetailModal data={data} asset={viewing} onUpdate={onUpdate} showToast={showToast}
-        onNavigate={onNavigate} onClose={() => setViewing(null)} />
-    </div>
-  );
-};
-
-// =================================================================================
-// MODULE: TALENT MANAGEMENT SYSTEM — OVERVIEW (3-STAGE FLOW)
-// =================================================================================
-
-const TMSOverviewModule = ({ data, onNavigate }) => {
-  const stats = useMemo(() => {
-    const getBucket = (val) => val >= 4.2 ? 2 : val >= 3.5 ? 1 : 0;
-    const matrix = Array(3).fill(null).map(() => Array(3).fill(0));
-    data.pegawai.forEach(p => {
-      const x = getBucket(p.performance);
-      const y = 2 - getBucket(p.kompetensi);
-      matrix[y][x]++;
-    });
-    const star = matrix[0][2];
-    const highPot = matrix[0][1] + matrix[1][2];
-    const corePlayer = matrix[1][1];
-    const atRisk = matrix[2][0];
-
-    const devPrograms = data.pengajuan.filter(p => p.status === 'approved' || p.status === 'review').length;
-    const completed = data.pengajuan.filter(p => p.status === 'completed').length;
-
-    const successionReady1y = data.succession.filter(s => s.readiness === '1y').length;
-    const successionGap = data.succession.filter(s => s.kandidat.length === 0).length;
-
-    return { star, highPot, corePlayer, atRisk, devPrograms, completed, successionReady1y, successionGap };
-  }, [data]);
-
-  return (
-    <div className="p-5 space-y-4">
-      {/* 3-STAGE FLOW HEADER */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr_auto_1fr] gap-3 items-stretch">
-        <button onClick={() => onNavigate('tms-9box')}
-          className="bg-emerald-600 hover:bg-emerald-700 transition-colors text-white rounded-xl p-4 text-left">
-          <div className="text-[10px] font-medium opacity-80 tracking-wider mb-1">STAGE 01</div>
-          <div className="text-lg font-semibold mb-2">Acquisition</div>
-          <div className="flex flex-wrap gap-3 text-xs opacity-95">
-            <span className="flex items-center gap-1"><Activity className="w-3 h-3" /> Kompetensi + Performance</span>
-            <span className="flex items-center gap-1"><Grid3x3 className="w-3 h-3" /> 9-Box Mapping</span>
-          </div>
-        </button>
-        <div className="hidden lg:flex items-center text-slate-300"><ChevronRight className="w-5 h-5" /></div>
-        <button onClick={() => onNavigate('km-sme')}
-          className="bg-amber-500 hover:bg-amber-600 transition-colors text-white rounded-xl p-4 text-left">
-          <div className="text-[10px] font-medium opacity-80 tracking-wider mb-1">STAGE 02</div>
-          <div className="text-lg font-semibold mb-2">Development</div>
-          <div className="flex flex-wrap gap-2 text-xs opacity-95">
-            <span className="flex items-center gap-1"><GraduationCap className="w-3 h-3" /> Training</span>
-            <span className="flex items-center gap-1"><User className="w-3 h-3" /> Coaching</span>
-            <span className="flex items-center gap-1"><Users className="w-3 h-3" /> Mentoring</span>
-            <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" /> Job Assign.</span>
-          </div>
-        </button>
-        <div className="hidden lg:flex items-center text-slate-300"><ChevronRight className="w-5 h-5" /></div>
-        <button onClick={() => onNavigate('tms-succession')}
-          className="bg-violet-600 hover:bg-violet-700 transition-colors text-white rounded-xl p-4 text-left">
-          <div className="text-[10px] font-medium opacity-80 tracking-wider mb-1">STAGE 03</div>
-          <div className="text-lg font-semibold mb-2">Alignment</div>
-          <div className="flex flex-wrap gap-2 text-xs opacity-95">
-            <span className="flex items-center gap-1"><Replace className="w-3 h-3" /> Succession Plan</span>
-            <span className="flex items-center gap-1"><Star className="w-3 h-3" /> Talent Pool</span>
-            <span className="flex items-center gap-1"><ArrowUpRight className="w-3 h-3" /> Promosi</span>
-          </div>
-        </button>
-      </div>
-
-      {/* INTEGRATION STRIP */}
-      <Card padding="p-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-            <Network className="w-3.5 h-3.5" /> Sumber Data Terintegrasi:
-          </div>
-          <Badge className="bg-blue-50 text-blue-800"><Activity className="w-3 h-3" />Penilaian Kinerja (IKU)</Badge>
-          <Badge className="bg-rose-50 text-rose-800"><ClipboardCheck className="w-3 h-3" />Asesmen Pegawai</Badge>
-          <Badge className="bg-emerald-50 text-emerald-800"><GraduationCap className="w-3 h-3" />Rencana Pelatihan (KMLS)</Badge>
-          <div className="ml-auto flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
-            <CheckCircle className="w-3 h-3" />Sinkron 5 menit lalu
-          </div>
-        </div>
-      </Card>
-
-      {/* KPI CARDS PER STAGE */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="★ Top Talent" value={stats.star} icon={Star} color="emerald" delta="Ready for C-Level" />
-        <StatCard label="High Potential" value={stats.highPot} icon={TrendingUp} color="blue" delta="Akselerasi development" />
-        <StatCard label="Program Aktif" value={stats.devPrograms} icon={GraduationCap} color="amber" delta={`${stats.completed} pelatihan selesai`} />
-        <StatCard label="Successor Ready" value={stats.successionReady1y} icon={Replace} color="violet"
-          delta={stats.successionGap > 0 ? `⚠ ${stats.successionGap} posisi tanpa kandidat` : 'Semua posisi covered'}
-          deltaColor={stats.successionGap > 0 ? 'rose' : 'emerald'} />
-      </div>
-
-      {/* DETAIL ROW: 3 STAGES BREAKDOWN */}
-      <div className="grid lg:grid-cols-3 gap-4">
-        {/* STAGE 01 DETAIL */}
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Badge className="bg-emerald-100 text-emerald-800">STAGE 01</Badge>
-              <h3 className="text-sm font-semibold text-slate-800">Acquisition</h3>
-            </div>
-            <button onClick={() => onNavigate('tms-9box')}
-              className="text-xs text-emerald-700 hover:text-emerald-800 font-medium flex items-center gap-1">
-              Detail <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-          <div className="space-y-2 text-xs">
-            <div className="flex justify-between p-2 bg-emerald-50 rounded-md">
-              <span className="text-emerald-900 font-medium">★ Star / Top Talent</span>
-              <span className="font-semibold text-emerald-900">{stats.star} pegawai</span>
-            </div>
-            <div className="flex justify-between p-2 bg-blue-50 rounded-md">
-              <span className="text-blue-900 font-medium">High Potential</span>
-              <span className="font-semibold text-blue-900">{stats.highPot} pegawai</span>
-            </div>
-            <div className="flex justify-between p-2 bg-slate-50 rounded-md">
-              <span className="text-slate-700 font-medium">Core Player</span>
-              <span className="font-semibold text-slate-700">{stats.corePlayer} pegawai</span>
-            </div>
-            {stats.atRisk > 0 && (
-              <div className="flex justify-between p-2 bg-rose-50 rounded-md">
-                <span className="text-rose-900 font-medium">⚠ Perlu PIP</span>
-                <span className="font-semibold text-rose-900">{stats.atRisk} pegawai</span>
-              </div>
-            )}
-          </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 text-[11px] text-slate-500">
-            Hasil 9-Box Mapping otomatis dari data kinerja & kompetensi {data.pegawai.length} pegawai.
-          </div>
-        </Card>
-
-        {/* STAGE 02 DETAIL */}
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Badge className="bg-amber-100 text-amber-800">STAGE 02</Badge>
-              <h3 className="text-sm font-semibold text-slate-800">Development</h3>
-            </div>
-            <button onClick={() => onNavigate('pengajuan')}
-              className="text-xs text-emerald-700 hover:text-emerald-800 font-medium flex items-center gap-1">
-              Detail <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-          <div className="space-y-2 text-xs">
-            <div className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-md">
-              <div className="w-7 h-7 rounded-md bg-amber-100 text-amber-700 flex items-center justify-center">
-                <GraduationCap className="w-4 h-4" />
-              </div>
-              <div className="flex-1">
-                <div className="font-medium text-slate-800">Training & Sertifikasi</div>
-                <div className="text-[10px] text-slate-500">{data.pengajuan.filter(p => p.jenis === 'Sertifikasi' || p.jenis === 'Eksternal').length} pengajuan</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-md">
-              <div className="w-7 h-7 rounded-md bg-blue-100 text-blue-700 flex items-center justify-center">
-                <User className="w-4 h-4" />
-              </div>
-              <div className="flex-1">
-                <div className="font-medium text-slate-800">Coaching</div>
-                <div className="text-[10px] text-slate-500">Executive coaching · Q2 aktif</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-md">
-              <div className="w-7 h-7 rounded-md bg-violet-100 text-violet-700 flex items-center justify-center">
-                <Users className="w-4 h-4" />
-              </div>
-              <div className="flex-1">
-                <div className="font-medium text-slate-800">Mentoring</div>
-                <div className="text-[10px] text-slate-500">{data.sme.length} SME tersedia sebagai mentor</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-md">
-              <div className="w-7 h-7 rounded-md bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                <Briefcase className="w-4 h-4" />
-              </div>
-              <div className="flex-1">
-                <div className="font-medium text-slate-800">Job Assignment</div>
-                <div className="text-[10px] text-slate-500">Stretch project & rotasi</div>
-              </div>
-            </div>
-          </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 text-[11px] text-slate-500">
-            Hasil pengembangan: Lulus → Talent Pool · Tidak Lulus → re-development.
-          </div>
-        </Card>
-
-        {/* STAGE 03 DETAIL */}
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Badge className="bg-violet-100 text-violet-800">STAGE 03</Badge>
-              <h3 className="text-sm font-semibold text-slate-800">Alignment</h3>
-            </div>
-            <button onClick={() => onNavigate('tms-succession')}
-              className="text-xs text-emerald-700 hover:text-emerald-800 font-medium flex items-center gap-1">
-              Detail <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-          <div className="space-y-2 text-xs">
-            <button onClick={() => onNavigate('tms-succession')}
-              className="w-full flex items-center gap-2 p-2 hover:bg-slate-50 rounded-md text-left">
-              <Replace className="w-4 h-4 text-violet-600" />
-              <div className="flex-1">
-                <div className="font-medium text-slate-800">Succession Plan</div>
-                <div className="text-[10px] text-slate-500">{data.succession.length} posisi kritis dipetakan</div>
-              </div>
-              <ChevronRight className="w-3 h-3 text-slate-400" />
-            </button>
-            <button onClick={() => onNavigate('tms-pool')}
-              className="w-full flex items-center gap-2 p-2 hover:bg-slate-50 rounded-md text-left">
-              <Star className="w-4 h-4 text-amber-600" />
-              <div className="flex-1">
-                <div className="font-medium text-slate-800">Talent Pool</div>
-                <div className="text-[10px] text-slate-500">{data.talentPool.length} anggota terdaftar</div>
-              </div>
-              <ChevronRight className="w-3 h-3 text-slate-400" />
-            </button>
-            <button onClick={() => onNavigate('tms-promosi')}
-              className="w-full flex items-center gap-2 p-2 hover:bg-slate-50 rounded-md text-left">
-              <ArrowUpRight className="w-4 h-4 text-emerald-600" />
-              <div className="flex-1">
-                <div className="font-medium text-slate-800">Workflow Promosi</div>
-                <div className="text-[10px] text-slate-500">Pengajuan → Cek Syarat → Approval</div>
-              </div>
-              <ChevronRight className="w-3 h-3 text-slate-400" />
-            </button>
-          </div>
-          {stats.successionGap > 0 && (
-            <div className="mt-3 px-2.5 py-1.5 bg-rose-50 text-rose-800 rounded-md text-[11px] flex items-center gap-1.5">
-              <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-              <span><strong>{stats.successionGap} posisi kritis</strong> belum punya kandidat suksesor</span>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* CLOSED-LOOP NARRATIVE */}
-      <Card className="!bg-gradient-to-br !from-emerald-50 !to-violet-50 !border-emerald-200">
-        <div className="flex items-start gap-3">
-          <Sparkles className="w-5 h-5 text-emerald-700 flex-shrink-0 mt-0.5" />
-          <div className="text-xs text-slate-700 leading-relaxed">
-            <div className="font-semibold text-slate-800 mb-1">Closed-loop antar-stage</div>
-            9-Box menentukan siapa masuk Talent Pool → Pool menentukan program pengembangan (training/coaching/mentoring/job assignment) yang ditarik dari modul Pelatihan → Hasil pengembangan (Lulus/Tidak Lulus) mengupdate posisi 9-Box → Bila Lulus, masuk Successor Pool atau diajukan Promosi melalui workflow 3-tahap.
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
-};
-
-
-
-const NineBoxModule = ({ data }) => {
-  const matrix = useMemo(() => {
-    const grid = Array(3).fill(null).map(() => Array(3).fill(null).map(() => []));
-    const getBucket = (val) => val >= 4.2 ? 2 : val >= 3.5 ? 1 : 0;
-    data.pegawai.forEach(p => {
-      const x = getBucket(p.performance);
-      const y = 2 - getBucket(p.kompetensi);
-      grid[y][x].push(p);
-    });
-    return grid;
-  }, [data]);
-
-  const cellInfo = [
-    [
-      { label: 'Future Star', color: 'bg-amber-50 border-amber-200', text: 'text-amber-900' },
-      { label: 'High Potential', color: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-900' },
-      { label: '★ Star / Top Talent', color: 'bg-emerald-100 border-emerald-300', text: 'text-emerald-900' },
-    ],
-    [
-      { label: 'Inconsistent', color: 'bg-slate-50 border-slate-200', text: 'text-slate-700' },
-      { label: 'Core Player', color: 'bg-blue-50 border-blue-200', text: 'text-blue-900' },
-      { label: 'High Performer', color: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-900' },
-    ],
-    [
-      { label: 'Under-performer', color: 'bg-rose-50 border-rose-200', text: 'text-rose-900' },
-      { label: 'Ineffective', color: 'bg-slate-50 border-slate-200', text: 'text-slate-700' },
-      { label: 'Solid Performer', color: 'bg-amber-50 border-amber-200', text: 'text-amber-900' },
-    ],
-  ];
-
-  return (
-    <div className="p-5 space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-slate-800">9-Box Talent Mapping</h2>
-        <p className="text-xs text-slate-500">Pemetaan talent berdasarkan kinerja & kompetensi · {data.pegawai.length} pegawai</p>
-      </div>
-
-      <Card>
-        <div className="flex gap-2">
-          <div className="flex flex-col justify-between text-[10px] font-medium text-slate-500 py-2" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
-            <span>HIGH</span>
-            <span>KOMPETENSI / POTENSI</span>
-            <span>LOW</span>
-          </div>
-          <div className="flex-1">
-            <div className="grid grid-cols-3 gap-2">
-              {matrix.map((row, y) =>
-                row.map((cell, x) => {
-                  const info = cellInfo[y][x];
-                  return (
-                    <div key={`${y}-${x}`} className={`rounded-lg border-2 p-3 min-h-[110px] flex flex-col ${info.color}`}>
-                      <div className={`text-[11px] font-semibold mb-1 ${info.text}`}>{info.label}</div>
-                      <div className={`text-[10px] mb-2 ${info.text} opacity-70`}>{cell.length} pegawai</div>
-                      <div className="flex flex-wrap gap-1 mt-auto">
-                        {cell.slice(0, 4).map(p => (
-                          <div key={p.id} title={p.nama}
-                            className="w-6 h-6 rounded-full bg-white border border-slate-200 text-[9px] flex items-center justify-center font-semibold text-slate-700">
-                            {initials(p.nama)}
-                          </div>
-                        ))}
-                        {cell.length > 4 && (
-                          <div className="w-6 h-6 rounded-full bg-slate-200 text-[9px] flex items-center justify-center font-semibold text-slate-700">
-                            +{cell.length - 4}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-            <div className="grid grid-cols-3 gap-2 mt-2 text-[10px] font-medium text-slate-500 text-center">
-              <div>LOW</div>
-              <div>MEDIUM</div>
-              <div>HIGH</div>
-            </div>
-            <div className="text-center text-[10px] font-medium text-slate-500 mt-1">PERFORMANCE / KINERJA →</div>
-          </div>
-        </div>
-      </Card>
-
-      <Card>
-        <h3 className="text-sm font-semibold text-slate-800 mb-3">Rekomendasi Aksi per Kategori</h3>
-        <div className="space-y-2 text-xs">
-          {matrix[0][2].length > 0 && (
-            <div className="flex gap-2 p-2 bg-emerald-50 rounded-md">
-              <Star className="w-4 h-4 text-emerald-700 flex-shrink-0 mt-0.5" />
-              <div><span className="font-medium text-emerald-900">★ Top Talent ({matrix[0][2].length}):</span> <span className="text-emerald-800">Masukkan ke successor pool, berikan stretch assignment, executive coaching.</span></div>
-            </div>
-          )}
-          {matrix[0][1].length > 0 && (
-            <div className="flex gap-2 p-2 bg-emerald-50 rounded-md">
-              <TrendingUp className="w-4 h-4 text-emerald-700 flex-shrink-0 mt-0.5" />
-              <div><span className="font-medium text-emerald-900">High Potential ({matrix[0][1].length}):</span> <span className="text-emerald-800">Akselerasi development melalui leadership program & mentoring.</span></div>
-            </div>
-          )}
-          {matrix[2][0].length > 0 && (
-            <div className="flex gap-2 p-2 bg-rose-50 rounded-md">
-              <AlertTriangle className="w-4 h-4 text-rose-700 flex-shrink-0 mt-0.5" />
-              <div><span className="font-medium text-rose-900">Under-performer ({matrix[2][0].length}):</span> <span className="text-rose-800">Performance Improvement Plan (PIP) atau evaluasi peran ulang.</span></div>
-            </div>
-          )}
-        </div>
-      </Card>
-    </div>
-  );
-};
-
-// =================================================================================
-// MODULE: TALENT POOL
-// =================================================================================
-
-const TALENT_CATEGORIES = {
-  star: { label: '★ Star / Top Talent', color: 'bg-emerald-100 text-emerald-800' },
-  highpot: { label: 'High Potential', color: 'bg-blue-100 text-blue-800' },
-  future: { label: 'Future Star', color: 'bg-amber-100 text-amber-800' },
-  critical: { label: 'Critical Backup', color: 'bg-violet-100 text-violet-800' },
-};
-
-const TalentPoolModule = ({ data }) => {
-  const grouped = useMemo(() => {
-    const g = {};
-    Object.keys(TALENT_CATEGORIES).forEach(k => g[k] = []);
-    data.talentPool.forEach(t => {
-      const peg = findPegawai(data, t.pegawaiId);
-      if (peg) g[t.kategori]?.push({ ...t, pegawai: peg });
-    });
-    return g;
-  }, [data]);
-
-  return (
-    <div className="p-5 space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-slate-800">Talent Pool</h2>
-        <p className="text-xs text-slate-500">Kumpulan talent untuk succession & development pipeline</p>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {Object.entries(TALENT_CATEGORIES).map(([key, cat]) => (
-          <StatCard key={key} label={cat.label} value={grouped[key]?.length || 0} icon={Star}
-            color={key === 'star' ? 'emerald' : key === 'highpot' ? 'blue' : key === 'future' ? 'amber' : 'violet'} />
-        ))}
-      </div>
-
-      {Object.entries(grouped).map(([key, members]) => members.length > 0 && (
-        <Card key={key}>
-          <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
-            <Badge className={TALENT_CATEGORIES[key].color}>{TALENT_CATEGORIES[key].label}</Badge>
-            <span className="text-xs text-slate-500">{members.length} anggota</span>
-          </h3>
-          <div className="space-y-2">
-            {members.map(m => (
-              <div key={m.id} className="flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-md">
-                <Avatar nama={m.pegawai.nama} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-slate-800">{m.pegawai.nama}</div>
-                  <div className="text-xs text-slate-500">{m.pegawai.jabatan} · {m.notes}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs font-medium text-slate-700">P: {m.pegawai.performance.toFixed(1)} · K: {m.pegawai.kompetensi.toFixed(1)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      ))}
-    </div>
-  );
-};
-
-// =================================================================================
-// MODULE: SUCCESSION PLAN
-// =================================================================================
-
-const SuccessionModule = ({ data }) => {
-  const readinessLabels = {
-    '1y': { label: '≤ 1 tahun', color: 'bg-emerald-100 text-emerald-800' },
-    '2y': { label: '1–2 tahun', color: 'bg-amber-100 text-amber-800' },
-    '3y': { label: '2–3 tahun', color: 'bg-slate-100 text-slate-700' },
-  };
-
-  return (
-    <div className="p-5 space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-slate-800">Succession Plan</h2>
-        <p className="text-xs text-slate-500">Rencana suksesi untuk posisi kritis BPKH</p>
-      </div>
-
-      <Card padding="p-0">
-        <div className="divide-y divide-slate-100">
-          {data.succession.map(s => {
-            const incumbent = s.incumbent ? findPegawai(data, s.incumbent) : null;
-            const kandidats = s.kandidat.map(id => findPegawai(data, id)).filter(Boolean);
-            const r = readinessLabels[s.readiness];
-            return (
-              <div key={s.id} className="p-4 flex items-center gap-4 flex-wrap">
-                <div className="flex-1 min-w-[200px]">
-                  <div className="font-medium text-sm text-slate-800">{s.posisi}</div>
-                  <div className="text-xs text-slate-500">
-                    Incumbent: {incumbent ? incumbent.nama : <span className="text-rose-600">⚠ Kosong</span>}
-                  </div>
-                </div>
-                <Badge className={r.color}>{r.label}</Badge>
-                <div className="flex items-center -space-x-2">
-                  {kandidats.length === 0 ? (
-                    <div className="text-xs text-rose-600 flex items-center gap-1 px-2 py-1 bg-rose-50 rounded-md">
-                      <AlertTriangle className="w-3 h-3" />Tidak ada kandidat
-                    </div>
-                  ) : kandidats.slice(0, 4).map(k => (
-                    <div key={k.id} title={k.nama}
-                      className="w-8 h-8 rounded-full bg-violet-100 border-2 border-white text-violet-800 text-[10px] flex items-center justify-center font-semibold">
-                      {initials(k.nama)}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
-    </div>
-  );
-};
-
-// =================================================================================
-// MODULE: PROMOSI
-// =================================================================================
-
-const PromosiModule = ({ data, onUpdate, showToast }) => {
-  return (
-    <div className="p-5 space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-slate-800">Workflow Promosi</h2>
-        <p className="text-xs text-slate-500">Pengajuan promosi → Pengecekan syarat → Approval</p>
-      </div>
-
-      <Card>
-        <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
-          {[
-            { i: 1, l: 'Pengajuan', icon: Send, status: 'done' },
-            { i: 2, l: 'Cek Syarat', icon: ClipboardCheck, status: 'active' },
-            { i: 3, l: 'Approval', icon: CheckCircle, status: 'pending' },
-          ].map((s, idx) => (
-            <React.Fragment key={s.i}>
-              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
-                s.status === 'active' ? 'bg-violet-600 text-white' :
-                s.status === 'done' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
-              }`}>
-                <s.icon className="w-4 h-4" />
-                <span className="text-xs font-medium">{s.l}</span>
-              </div>
-              {idx < 2 && <ChevronRight className="w-4 h-4 text-slate-400" />}
-            </React.Fragment>
-          ))}
-        </div>
-
-        <div className="space-y-2">
-          {data.talentPool.slice(0, 4).map(t => {
-            const peg = findPegawai(data, t.pegawaiId);
-            if (!peg) return null;
-            const reqs = [
-              { l: 'Masa Kerja ≥ 3 tahun', ok: true },
-              { l: 'Kinerja ≥ 3.5', ok: peg.performance >= 3.5 },
-              { l: 'Kompetensi ≥ 3.5', ok: peg.kompetensi >= 3.5 },
-            ];
-            return (
-              <div key={t.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-md">
-                <Avatar nama={peg.nama} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-slate-800">{peg.nama}</div>
-                  <div className="text-xs text-slate-500">{peg.jabatan} → Promosi diajukan</div>
-                </div>
-                <div className="flex gap-3">
-                  {reqs.map((r, i) => (
-                    <div key={i} className="flex items-center gap-1 text-xs" title={r.l}>
-                      {r.ok ? <CheckCircle className="w-4 h-4 text-emerald-600" /> : <XCircle className="w-4 h-4 text-rose-600" />}
-                    </div>
-                  ))}
-                </div>
-                <Button size="sm" variant={reqs.every(r => r.ok) ? 'primary' : 'default'}
-                  disabled={!reqs.every(r => r.ok)}>
-                  Approve
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
-    </div>
-  );
-};
-
-// =================================================================================
-// MODULE: SETTINGS
-// =================================================================================
-
-const SettingsModule = ({ data, onReset, showToast }) => {
-  const [confirmReset, setConfirmReset] = useState(false);
-
-  return (
-    <div className="p-5 space-y-4 max-w-2xl">
-      <div>
-        <h2 className="text-base font-semibold text-slate-800">Pengaturan</h2>
-        <p className="text-xs text-slate-500">Konfigurasi & pengelolaan data aplikasi</p>
-      </div>
-
-      <Card>
-        <h3 className="text-sm font-semibold text-slate-800 mb-3">Informasi Aplikasi</h3>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between"><span className="text-slate-500">Nama</span><span className="font-medium">KMLS — BPKH Learning Suite</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">Versi</span><span className="font-medium">{APP_VERSION}</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">Total Pegawai</span><span className="font-medium">{data.pegawai.length}</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">Total Pengajuan</span><span className="font-medium">{data.pengajuan.length}</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">Total Knowledge Asset</span><span className="font-medium">{data.knowledgeAsset.length}</span></div>
-        </div>
-      </Card>
-
-      <Card>
-        <h3 className="text-sm font-semibold text-slate-800 mb-1">Ekspor Data</h3>
-        <p className="text-xs text-slate-500 mb-3">Backup seluruh data aplikasi ke file JSON</p>
-        <Button icon={Download} onClick={() => {
-          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `kmls-backup-${new Date().toISOString().split('T')[0]}.json`;
-          a.click();
-          URL.revokeObjectURL(url);
-          showToast('Data berhasil diekspor');
-        }}>
-          Download Backup (JSON)
-        </Button>
-      </Card>
-
-      <Card className="!border-rose-200 !bg-rose-50/30">
-        <h3 className="text-sm font-semibold text-rose-800 mb-1">Reset Data</h3>
-        <p className="text-xs text-rose-700 mb-3">Hapus semua data dan kembali ke data awal (seed). Tindakan ini tidak dapat dibatalkan.</p>
-        {!confirmReset ? (
-          <Button variant="danger" icon={RefreshCw} onClick={() => setConfirmReset(true)}>Reset ke Data Awal</Button>
-        ) : (
-          <div className="flex gap-2">
-            <Button variant="danger" onClick={() => { onReset(); setConfirmReset(false); }}>Yakin, Reset Sekarang</Button>
-            <Button variant="ghost" onClick={() => setConfirmReset(false)}>Batal</Button>
-          </div>
-        )}
-      </Card>
-
-      <Card className="!bg-emerald-50 !border-emerald-200">
-        <div className="flex items-start gap-3">
-          <Sparkles className="w-5 h-5 text-emerald-700 flex-shrink-0 mt-0.5" />
-          <div>
-            <div className="text-sm font-semibold text-emerald-900">Tentang Aplikasi Ini</div>
-            <p className="text-xs text-emerald-800 mt-1 leading-relaxed">
-              KMLS adalah prototipe aplikasi terintegrasi untuk Knowledge Management & Learning System BPKH.
-              Aplikasi mencakup pengelolaan pelatihan end-to-end, 4 pilar KM (SME, Knowledge Map, CoP, Knowledge Asset),
-              dan Talent Management System dengan 9-Box mapping & succession planning.
-              Dibangun dengan pendekatan modular & scalable — siap dikembangkan menjadi production-grade application.
-            </p>
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
-};
-
-// =================================================================================
-// MODULE: LEARNING PATHS
-// =================================================================================
-
-const LearningPathsModule = ({ data, onUpdate, showToast }) => {
-  const [viewing, setViewing] = useState(null);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState({ title: '', targetRole: '', description: '' });
-
-  const enrollments = data.enrollments || [];
-  const myEnrollment = (pathId) => enrollments.find(e => e.userId === CURRENT_USER_ID && e.pathId === pathId);
-  const enrolleesOf = (pathId) => enrollments.filter(e => e.pathId === pathId);
-
-  const enroll = (pathId) => {
-    if (myEnrollment(pathId)) return;
-    onUpdate({ ...data, enrollments: [...enrollments, { id: uid('en'), userId: CURRENT_USER_ID, pathId, startedAt: new Date().toISOString(), completedSteps: [] }] });
-    showToast('Berhasil enroll ke learning path');
-  };
-  const unenroll = (pathId) => {
-    onUpdate({ ...data, enrollments: enrollments.filter(e => !(e.userId === CURRENT_USER_ID && e.pathId === pathId)) });
-    showToast('Enrollment dibatalkan', 'info');
-  };
-  const toggleStep = (pathId, stepIdx) => {
-    const enr = myEnrollment(pathId);
-    if (!enr) return;
-    const completed = enr.completedSteps.includes(stepIdx)
-      ? enr.completedSteps.filter(i => i !== stepIdx)
-      : [...enr.completedSteps, stepIdx];
-    onUpdate({ ...data, enrollments: enrollments.map(e => e.id === enr.id ? { ...e, completedSteps: completed } : e) });
-  };
-
-  const createPath = () => {
-    if (!form.title.trim()) { showToast('Judul wajib diisi', 'error'); return; }
-    const newPath = {
-      id: uid('lp'), title: form.title, targetRole: form.targetRole, description: form.description,
-      createdBy: CURRENT_USER_ID, steps: [],
-    };
-    onUpdate({ ...data, learningPaths: [...(data.learningPaths || []), newPath] });
-    showToast('Learning path dibuat — tambahkan step di detail');
-    setCreateOpen(false);
-    setForm({ title: '', targetRole: '', description: '' });
-  };
-
-  return (
-    <div className="p-5 space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h2 className="text-base font-semibold text-slate-800">Learning Paths</h2>
-          <p className="text-xs text-slate-500">Kurikulum terstruktur: asset + training + sertifikasi untuk setiap role</p>
-        </div>
-        <Button variant="primary" icon={Plus} onClick={() => setCreateOpen(true)}>Buat Path Baru</Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {(data.learningPaths || []).map(p => {
-          const enr = myEnrollment(p.id);
-          const progress = enr ? Math.round((enr.completedSteps.length / Math.max(p.steps.length, 1)) * 100) : 0;
-          const totalMin = p.steps.reduce((s, st) => s + (st.estMinutes || 0), 0);
-          return (
-            <Card key={p.id} className="hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer relative">
-              <button onClick={() => setViewing(p)} className="absolute inset-0 w-full h-full" aria-label="Buka detail" />
-              <div className="relative pointer-events-none">
-                <div className="flex items-start gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                    <Route className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-sm text-slate-800">{p.title}</div>
-                    <div className="text-[11px] text-slate-500">Target: {p.targetRole || 'Umum'}</div>
-                  </div>
-                  {enr && <Badge className="bg-emerald-100 text-emerald-700"><CheckCircle className="w-3 h-3" />Enrolled</Badge>}
-                </div>
-                {p.description && <p className="text-xs text-slate-600 mb-2 line-clamp-2">{p.description}</p>}
-                <div className="text-[11px] text-slate-500 mb-2">
-                  {p.steps.length} step · ~{Math.round(totalMin / 60)}h estimasi · {enrolleesOf(p.id).length} enrollee
-                </div>
-                {enr && (
-                  <>
-                    <div className="flex justify-between text-[10px] mb-1">
-                      <span className="text-slate-600">Progress Saya</span>
-                      <span className="font-medium text-emerald-700">{progress}%</span>
-                    </div>
-                    <ProgressBar value={progress} />
-                  </>
-                )}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-
-      <Modal open={!!viewing} onClose={() => setViewing(null)} title="Detail Learning Path" size="xl">
-        {viewing && (() => {
-          const enr = myEnrollment(viewing.id);
-          const enrolled = !!enr;
-          const progress = enr ? Math.round((enr.completedSteps.length / Math.max(viewing.steps.length, 1)) * 100) : 0;
-          const creator = findPegawai(data, viewing.createdBy);
-          return (
-            <div className="p-5 space-y-4">
-              <div>
-                <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
-                  <div className="w-12 h-12 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                    <Route className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-semibold text-slate-800">{viewing.title}</h3>
-                    <div className="text-xs text-slate-500">Target role: <b>{viewing.targetRole}</b> · dibuat oleh {creator?.nama || 'system'}</div>
-                  </div>
-                  {enrolled
-                    ? <Button icon={XCircle} onClick={() => unenroll(viewing.id)}>Batalkan Enrollment</Button>
-                    : <Button variant="primary" icon={GraduationCap} onClick={() => enroll(viewing.id)}>Enroll Saya</Button>}
-                </div>
-                {viewing.description && <p className="text-sm text-slate-700 mt-3">{viewing.description}</p>}
-              </div>
-
-              {enrolled && (
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-600">Progress Saya</span>
-                    <span className="font-medium text-emerald-700">{enr.completedSteps.length} / {viewing.steps.length} · {progress}%</span>
-                  </div>
-                  <ProgressBar value={progress} />
-                </div>
-              )}
-
-              <div>
-                <div className="text-xs font-medium text-slate-600 mb-2">Langkah ({viewing.steps.length})</div>
-                <div className="space-y-2">
-                  {viewing.steps.map((st, idx) => {
-                    const done = enr?.completedSteps.includes(idx);
-                    const asset = st.type === 'asset' ? findAsset(data, st.refId) : null;
-                    return (
-                      <div key={idx} className={`flex items-start gap-3 p-3 rounded-lg border ${done ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
-                        <button onClick={() => enrolled && toggleStep(viewing.id, idx)} disabled={!enrolled}
-                          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                            done ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-300 hover:border-emerald-500'
-                          } ${enrolled ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
-                          {done && <CheckCircle className="w-4 h-4" />}
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-medium text-slate-800">Step {idx + 1}: {st.title}</span>
-                            <Badge className={st.type === 'asset' ? 'bg-violet-100 text-violet-700' : 'bg-amber-100 text-amber-700'}>
-                              {st.type === 'asset' ? 'Asset' : 'Training'}
-                            </Badge>
-                          </div>
-                          {asset && <div className="text-[11px] text-slate-500 mt-0.5">→ {asset.judul} (v{asset.version})</div>}
-                          {st.estMinutes && <div className="text-[10px] text-slate-400 mt-0.5">Estimasi ~{st.estMinutes} menit</div>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {viewing.steps.length === 0 && <div className="text-xs text-slate-500 italic">Belum ada step.</div>}
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-slate-100">
-                <div className="text-xs font-medium text-slate-600 mb-2">Enrollee ({enrolleesOf(viewing.id).length})</div>
-                <div className="flex flex-wrap gap-1">
-                  {enrolleesOf(viewing.id).map(e => {
-                    const p = findPegawai(data, e.userId);
-                    const prog = Math.round((e.completedSteps.length / Math.max(viewing.steps.length, 1)) * 100);
-                    return (
-                      <Badge key={e.id} className="bg-slate-100 text-slate-700">
-                        {p?.nama || 'Unknown'} · {prog}%
-                      </Badge>
-                    );
-                  })}
-                  {enrolleesOf(viewing.id).length === 0 && <div className="text-xs text-slate-500 italic">Belum ada yang enroll.</div>}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-      </Modal>
-
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Buat Learning Path Baru">
-        <div className="p-5 space-y-3">
-          <Input label="Judul Path *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
-            placeholder="contoh: Onboarding Compliance Officer" />
-          <Input label="Target Role" value={form.targetRole} onChange={e => setForm({ ...form, targetRole: e.target.value })}
-            placeholder="contoh: Compliance Officer" />
-          <Textarea label="Deskripsi" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-            placeholder="Tujuan path & expected outcome..." />
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setCreateOpen(false)}>Batal</Button>
-            <Button variant="primary" icon={Save} onClick={createPath}>Buat Path</Button>
-          </div>
-        </div>
-      </Modal>
-    </div>
-  );
-};
-
-// =================================================================================
-// MODULE: SKILL MATRIX (Competency × Pegawai)
-// =================================================================================
-
-const SkillMatrixModule = ({ data }) => {
-  const [tab, setTab] = useState('matrix');
-  const [divFilter, setDivFilter] = useState('all');
-
-  const competencies = data.competencies || [];
-  const pegawai = useMemo(() =>
-    data.pegawai.filter(p => divFilter === 'all' || p.divisi === divFilter)
-  , [data, divFilter]);
-
-  const levelOf = (pegId, cmpId) => {
-    const r = (data.pegawaiCompetencies || []).find(x => x.pegawaiId === pegId && x.competencyId === cmpId);
-    return r ? r.level : 0;
-  };
-
-  const requirementsFor = (jabatan) => {
-    const r = (data.roleRequirements || []).find(x => x.jabatan === jabatan);
-    return r ? r.requirements : [];
-  };
-
-  const gapsFor = (peg) => {
-    const reqs = requirementsFor(peg.jabatan);
-    return reqs.map(([cmpId, target]) => {
-      const current = levelOf(peg.id, cmpId);
-      const cmp = competencies.find(c => c.id === cmpId);
-      return { cmp, current, target, gap: target - current };
-    }).filter(g => g.gap > 0);
-  };
-
-  const allGaps = useMemo(() => pegawai.map(p => ({ peg: p, gaps: gapsFor(p) })).filter(x => x.gaps.length > 0), [pegawai, data]);
-  const totalGaps = allGaps.reduce((s, x) => s + x.gaps.length, 0);
-  const totalReq = useMemo(() => pegawai.reduce((s, p) => s + requirementsFor(p.jabatan).length, 0), [pegawai, data]);
-  const coverage = totalReq > 0 ? Math.round((1 - totalGaps / totalReq) * 100) : 100;
-
-  return (
-    <div className="p-5 space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h2 className="text-base font-semibold text-slate-800">Skill Matrix</h2>
-          <p className="text-xs text-slate-500">Pemetaan kompetensi pegawai vs requirement role · auto-detect gap</p>
-        </div>
-        <Select value={divFilter} onChange={e => setDivFilter(e.target.value)}
-          options={[{ value: 'all', label: 'Semua Divisi' }, ...DIVISI_LIST.map(d => ({ value: d, label: d }))]} />
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="Total Pegawai (filter)" value={pegawai.length} icon={Users} color="blue" />
-        <StatCard label="Total Kompetensi" value={competencies.length} icon={Target} color="violet" />
-        <StatCard label="Coverage Requirement" value={`${coverage}%`} icon={CheckCircle} color={coverage > 80 ? 'emerald' : coverage > 60 ? 'amber' : 'rose'}
-          delta={`${totalGaps} gap dari ${totalReq} requirement`} />
-        <StatCard label="Pegawai dengan Gap" value={allGaps.length} icon={AlertTriangle} color="rose" />
-      </div>
-
-      <Card padding="p-0">
-        <div className="px-5 pt-3">
-          <Tabs tabs={[{ id: 'matrix', label: 'Matrix View', count: pegawai.length }, { id: 'gap', label: 'Gap Analysis', count: allGaps.length }]}
-            active={tab} onChange={setTab} />
-        </div>
-
-        {tab === 'matrix' && (
-          <div className="overflow-x-auto p-3">
-            <table className="w-full text-xs">
-              <thead>
-                <tr>
-                  <th className="text-left px-3 py-2 sticky left-0 bg-white">Pegawai</th>
-                  {competencies.map(c => (
-                    <th key={c.id} className="px-2 py-2 text-center text-[10px] font-medium text-slate-600" style={{ minWidth: 90 }}>
-                      <div className="truncate" title={c.name}>{c.name}</div>
-                      <div className="text-slate-400 font-normal">{c.domain}</div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {pegawai.map(p => (
-                  <tr key={p.id} className="hover:bg-slate-50/50">
-                    <td className="px-3 py-2 sticky left-0 bg-white">
-                      <div className="font-medium text-slate-800 text-xs">{p.nama}</div>
-                      <div className="text-[10px] text-slate-500">{p.jabatan}</div>
-                    </td>
-                    {competencies.map(c => {
-                      const lvl = levelOf(p.id, c.id);
-                      const cfg = COMPETENCY_LEVELS[lvl];
-                      return (
-                        <td key={c.id} className="px-2 py-2 text-center">
-                          <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-medium ${cfg.color}`}>
-                            {lvl > 0 ? `L${lvl}` : '—'}
-                          </span>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="mt-3 flex items-center gap-2 text-[10px] text-slate-500 flex-wrap px-3 pb-2">
-              <span className="font-medium">Legenda level:</span>
-              {Object.entries(COMPETENCY_LEVELS).map(([k, l]) => (
-                <span key={k} className={`px-2 py-0.5 rounded-md ${l.color}`}>L{k} · {l.label}</span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {tab === 'gap' && (
-          <div className="p-3 space-y-3">
-            {allGaps.length === 0 ? (
-              <EmptyState icon={CheckCircle} title="Tidak ada gap kompetensi" description="Semua pegawai memenuhi requirement role-nya." />
-            ) : allGaps.map(({ peg, gaps }) => (
-              <div key={peg.id} className="border border-slate-200 rounded-lg p-3">
-                <div className="flex items-center gap-3 mb-2 pb-2 border-b border-slate-100">
-                  <Avatar nama={peg.nama} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm text-slate-800">{peg.nama}</div>
-                    <div className="text-[11px] text-slate-500">{peg.jabatan} · {peg.divisi}</div>
-                  </div>
-                  <Badge className="bg-rose-100 text-rose-700">{gaps.length} gap</Badge>
-                </div>
-                <div className="space-y-1.5">
-                  {gaps.map(g => (
-                    <div key={g.cmp.id} className="flex items-center gap-2 text-xs">
-                      <span className="flex-1 text-slate-700">{g.cmp.name}</span>
-                      <Badge className={COMPETENCY_LEVELS[g.current].color}>L{g.current}</Badge>
-                      <ArrowRight className="w-3 h-3 text-slate-400" />
-                      <Badge className={COMPETENCY_LEVELS[g.target].color}>L{g.target}</Badge>
-                      <span className="text-rose-600 font-medium w-8 text-right">+{g.gap}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-2 pt-2 border-t border-slate-100 flex items-start gap-2 text-[11px] text-slate-600">
-                  <Lightbulb className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-                  <span>Rekomendasi: cari SME di domain <b>{gaps[0]?.cmp.domain}</b>, atau enroll ke learning path terkait.</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-};
-
-// =================================================================================
-// MODULE: KM ANALYTICS
-// =================================================================================
-
-const KMAnalyticsModule = ({ data, onNavigate }) => {
-  const assets = data.knowledgeAsset;
-  const published = assets.filter(a => (a.status || 'published') === 'published');
-  const draft = assets.filter(a => a.status === 'draft');
-  const reviewing = assets.filter(a => a.status === 'review');
-  const archived = assets.filter(a => a.status === 'archived');
-
-  const dormant = useMemo(() => {
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
-    return assets.filter(a => a.lastViewedAt && new Date(a.lastViewedAt) < cutoff)
-      .sort((a, b) => new Date(a.lastViewedAt) - new Date(b.lastViewedAt));
-  }, [assets]);
-
-  const overdue = useMemo(() =>
-    assets.filter(a => a.reviewDate && daysUntil(a.reviewDate) < 0)
-      .sort((a, b) => new Date(a.reviewDate) - new Date(b.reviewDate))
-  , [assets]);
-
-  const trending = useMemo(() => assets.slice().sort((a, b) => b.views - a.views).slice(0, 5), [assets]);
-
-  const ratedAssets = assets.filter(a => (a.ratingsUp || 0) + (a.ratingsDown || 0) > 0);
-  const avgRating = ratedAssets.length === 0 ? 0 :
-    ratedAssets.reduce((s, a) => s + ((a.ratingsUp || 0) / ((a.ratingsUp || 0) + (a.ratingsDown || 0))), 0) / ratedAssets.length;
-
-  const contributors = useMemo(() => {
-    const counts = {};
-    assets.forEach(a => { counts[a.owner] = (counts[a.owner] || 0) + 1; });
-    data.sme.forEach(s => { counts[s.pegawaiId] = (counts[s.pegawaiId] || 0) + s.kontribusi; });
-    return Object.entries(counts)
-      .map(([id, n]) => ({ peg: findPegawai(data, id), score: n }))
-      .filter(x => x.peg)
-      .sort((a, b) => b.score - a.score).slice(0, 5);
-  }, [data]);
-
-  const tagCount = useMemo(() => {
-    const t = {};
-    assets.forEach(a => a.tags.forEach(tag => { t[tag] = (t[tag] || 0) + 1; }));
-    return Object.entries(t).sort((a, b) => b[1] - a[1]).slice(0, 12);
-  }, [assets]);
-
-  // Health score (0-100): published ratio (40%) + non-dormant ratio (30%) + non-overdue ratio (30%)
-  const healthScore = useMemo(() => {
-    const pubR = assets.length ? published.length / assets.length : 0;
-    const dormR = assets.length ? 1 - (dormant.length / assets.length) : 0;
-    const overR = assets.length ? 1 - (overdue.length / assets.length) : 0;
-    return Math.round((pubR * 40 + dormR * 30 + overR * 30));
-  }, [assets, published, dormant, overdue]);
-
-  const healthColor = healthScore >= 80 ? 'emerald' : healthScore >= 60 ? 'amber' : 'rose';
-
-  return (
-    <div className="p-5 space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-slate-800">KM Analytics</h2>
-        <p className="text-xs text-slate-500">Health score, dormant detection, top contributors, dan trending knowledge</p>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card padding="p-4" className={`!border-${healthColor}-200 !bg-${healthColor}-50/40`}>
-          <div className="text-xs text-slate-600 mb-1">KM Health Score</div>
-          <div className={`text-3xl font-bold text-${healthColor}-700`}>{healthScore}<span className="text-base text-slate-400">/100</span></div>
-          <div className="text-[11px] text-slate-500 mt-1">Published, fresh, & up-to-date</div>
-        </Card>
-        <StatCard label="Total Asset" value={assets.length} icon={Database} color="violet"
-          delta={`${published.length} published · ${draft.length} draft`} />
-        <StatCard label="Dormant (90+ hari)" value={dormant.length} icon={TrendingDown} color={dormant.length > 0 ? 'rose' : 'emerald'}
-          delta="Tidak dibuka sejak Q1" />
-        <StatCard label="Overdue Review" value={overdue.length} icon={AlertTriangle} color={overdue.length > 0 ? 'amber' : 'emerald'}
-          delta="Review date terlewat" />
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-4">
-        <Card>
-          <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-1.5"><Flame className="w-4 h-4 text-rose-500" />Trending (Most Viewed)</h3>
-          <div className="space-y-2">
-            {trending.map((a, i) => {
-              const t = ASSET_TYPES[a.type];
-              return (
-                <div key={a.id} className="flex items-center gap-2">
-                  <div className="text-xs font-bold text-slate-400 w-5">#{i+1}</div>
-                  <div className={`w-7 h-7 rounded ${t.color} flex items-center justify-center flex-shrink-0`}>
-                    <t.icon className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-slate-800 truncate">{a.judul}</div>
-                    <div className="text-[10px] text-slate-500">{a.views} views</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-
-        <Card>
-          <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-1.5"><Star className="w-4 h-4 text-amber-500" />Top Contributors</h3>
-          <div className="space-y-2">
-            {contributors.map((c, i) => (
-              <div key={c.peg.id} className="flex items-center gap-2">
-                <div className="text-xs font-bold text-slate-400 w-5">#{i+1}</div>
-                <Avatar nama={c.peg.nama} size="xs" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium text-slate-800 truncate">{c.peg.nama}</div>
-                  <div className="text-[10px] text-slate-500">{c.peg.divisi}</div>
-                </div>
-                <Badge className="bg-emerald-100 text-emerald-700">{c.score}</Badge>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card>
-          <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-1.5"><TrendingDown className="w-4 h-4 text-rose-500" />Dormant Assets</h3>
-          <div className="space-y-2">
-            {dormant.length === 0 ? <div className="text-xs text-slate-500 italic">Semua asset aktif 👍</div> : dormant.slice(0, 5).map(a => {
-              const lastDays = daysSince(a.lastViewedAt || a.createdAt);
-              return (
-                <div key={a.id} className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-rose-400 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-slate-800 truncate">{a.judul}</div>
-                    <div className="text-[10px] text-slate-500">Terakhir dibuka {lastDays} hari lalu</div>
-                  </div>
-                </div>
-              );
-            })}
-            {dormant.length > 0 && (
-              <button onClick={() => onNavigate('km-asset')} className="text-[11px] text-emerald-700 hover:text-emerald-800 font-medium mt-2 flex items-center gap-1">
-                Lihat semua di Knowledge Asset <ArrowRight className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-        </Card>
-      </div>
-
-      {overdue.length > 0 && (
-        <Card className="!border-amber-200 !bg-amber-50/30">
-          <h3 className="text-sm font-semibold text-amber-900 mb-3 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" />Asset Perlu Review</h3>
-          <div className="space-y-1.5">
-            {overdue.slice(0, 6).map(a => (
-              <div key={a.id} className="flex items-center gap-2 text-xs">
-                <span className="flex-1 text-amber-900 font-medium truncate">{a.judul}</span>
-                <span className="text-amber-700">v{a.version}</span>
-                <Badge className="bg-rose-100 text-rose-700">{Math.abs(daysUntil(a.reviewDate))}h terlewat</Badge>
-              </div>
-            ))}
           </div>
         </Card>
       )}
-
-      <Card>
-        <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-1.5"><Tag className="w-4 h-4 text-violet-500" />Tag Cloud</h3>
-        <div className="flex flex-wrap gap-2">
-          {tagCount.map(([tag, n]) => (
-            <span key={tag} className="px-2.5 py-1 bg-violet-50 text-violet-700 rounded-full text-xs"
-              style={{ fontSize: `${Math.min(16, 10 + n * 1.5)}px` }}>
-              {tag} <span className="text-violet-400">({n})</span>
-            </span>
-          ))}
-        </div>
-      </Card>
-
-      <Card>
-        <h3 className="text-sm font-semibold text-slate-800 mb-3">Quality Snapshot</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-          <div>
-            <div className="text-2xl font-semibold text-emerald-700">{Math.round(avgRating * 100)}%</div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-wide">Helpful ratio</div>
-          </div>
-          <div>
-            <div className="text-2xl font-semibold text-blue-700">{reviewing.length}</div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-wide">In review</div>
-          </div>
-          <div>
-            <div className="text-2xl font-semibold text-slate-700">{archived.length}</div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-wide">Archived</div>
-          </div>
-          <div>
-            <div className="text-2xl font-semibold text-violet-700">{(data.bookmarks || []).length}</div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-wide">Total bookmarks</div>
-          </div>
-        </div>
-      </Card>
     </div>
   );
-};
+}
 
-// =================================================================================
-// MODULE: ASK THE EXPERT (Q&A with auto-routing to SMEs)
-// =================================================================================
+// =====================================================================
+// VIEW — SETTINGS
+// =====================================================================
 
-const AskExpertModule = ({ data, onUpdate, showToast }) => {
-  const [tab, setTab] = useState('open');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({ title: '', body: '', domain: KM_DOMAINS[0] });
-  const [viewing, setViewing] = useState(null);
-  const [answerText, setAnswerText] = useState('');
-
-  const questions = data.questions || [];
-  const counts = useMemo(() => ({
-    open: questions.filter(q => q.status === 'open').length,
-    answered: questions.filter(q => q.status === 'answered').length,
-    resolved: questions.filter(q => q.status === 'resolved').length,
-    mine: questions.filter(q => q.askerId === CURRENT_USER_ID).length,
-  }), [questions]);
-
-  const filtered = useMemo(() => {
-    let list = questions.slice();
-    if (tab === 'mine') list = list.filter(q => q.askerId === CURRENT_USER_ID);
-    else list = list.filter(q => q.status === tab);
-    return list.sort((a, b) => new Date(b.askedAt) - new Date(a.askedAt));
-  }, [questions, tab]);
-
-  const routedSMEs = (domain) => {
-    if (!domain) return [];
-    const dl = domain.toLowerCase();
-    return data.sme.filter(s => s.domain.toLowerCase().includes(dl));
-  };
-
-  const submitQuestion = () => {
-    if (!form.title.trim() || !form.body.trim()) { showToast('Judul & detail wajib diisi', 'error'); return; }
-    const newQ = {
-      id: uid('q'), askerId: CURRENT_USER_ID, title: form.title, body: form.body, domain: form.domain,
-      status: 'open', askedAt: new Date().toISOString(), answers: [],
-    };
-    onUpdate({ ...data, questions: [newQ, ...questions] });
-    const routed = routedSMEs(form.domain);
-    showToast(routed.length > 0 ? `Pertanyaan di-route ke ${routed.length} SME` : 'Pertanyaan diposting (belum ada SME di domain ini)');
-    setModalOpen(false);
-    setForm({ title: '', body: '', domain: KM_DOMAINS[0] });
-  };
-
-  const submitAnswer = () => {
-    if (!answerText.trim() || !viewing) return;
-    const newA = { id: uid('a'), smeId: CURRENT_USER_ID, body: answerText, votes: 0, createdAt: new Date().toISOString(), promotedToAssetId: null };
-    const updated = questions.map(q => q.id === viewing.id
-      ? { ...q, answers: [...q.answers, newA], status: q.status === 'open' ? 'answered' : q.status }
-      : q);
-    onUpdate({ ...data, questions: updated });
-    setViewing(updated.find(q => q.id === viewing.id));
-    setAnswerText('');
-    showToast('Jawaban dikirim');
-  };
-
-  const voteAnswer = (answerId, delta) => {
-    const updated = questions.map(q => q.id === viewing.id
-      ? { ...q, answers: q.answers.map(a => a.id === answerId ? { ...a, votes: a.votes + delta } : a) }
-      : q);
-    onUpdate({ ...data, questions: updated });
-    setViewing(updated.find(q => q.id === viewing.id));
-  };
-
-  const markResolved = () => {
-    const updated = questions.map(q => q.id === viewing.id ? { ...q, status: 'resolved' } : q);
-    onUpdate({ ...data, questions: updated });
-    setViewing(updated.find(q => q.id === viewing.id));
-    showToast('Pertanyaan ditandai resolved');
-  };
-
-  const promoteToAsset = (answer) => {
-    const newAsset = {
-      id: uid('ka'), judul: `Q&A: ${viewing.title}`, type: 'lesson',
-      tags: [viewing.domain, 'Q&A'], owner: answer.smeId,
-      description: `**Pertanyaan:** ${viewing.body}\n\n**Jawaban (SME):** ${answer.body}`,
-      status: 'published', version: '1.0',
-      reviewDate: (() => { const d = new Date(); d.setMonth(d.getMonth() + 12); return d.toISOString().split('T')[0]; })(),
-      ratingsUp: answer.votes, ratingsDown: 0, comments: [], views: 0,
-      lastViewedAt: new Date().toISOString(), createdAt: new Date().toISOString(),
-    };
-    const updatedQuestions = questions.map(q => q.id === viewing.id
-      ? { ...q, answers: q.answers.map(a => a.id === answer.id ? { ...a, promotedToAssetId: newAsset.id } : a), status: 'resolved' }
-      : q);
-    onUpdate({ ...data, knowledgeAsset: [newAsset, ...data.knowledgeAsset], questions: updatedQuestions });
-    setViewing(updatedQuestions.find(q => q.id === viewing.id));
-    showToast('Jawaban dipromote menjadi Knowledge Asset baru');
+function SettingsView({ user, onResetData }) {
+  const exportAll = () => {
+    const data = {};
+    Object.values(STORAGE_KEYS).forEach(k => {
+      const raw = localStorage.getItem(k);
+      if (raw) data[k.replace(STORAGE_PREFIX, '')] = JSON.parse(raw);
+    });
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kmls-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="p-5 space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h2 className="text-base font-semibold text-slate-800">Ask the Expert</h2>
-          <p className="text-xs text-slate-500">Tanya SME · jawaban terbaik bisa dipromote menjadi Knowledge Asset</p>
-        </div>
-        <Button variant="primary" icon={Plus} onClick={() => setModalOpen(true)}>Ajukan Pertanyaan</Button>
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Pengaturan</h1>
+        <p className="text-sm text-slate-500 mt-1">Konfigurasi sistem & manajemen data</p>
       </div>
 
-      <Card padding="p-0">
-        <div className="px-5 pt-3">
-          <Tabs tabs={[
-            { id: 'open', label: 'Open', count: counts.open },
-            { id: 'answered', label: 'Answered', count: counts.answered },
-            { id: 'resolved', label: 'Resolved', count: counts.resolved },
-            { id: 'mine', label: 'Pertanyaan Saya', count: counts.mine },
-          ]} active={tab} onChange={setTab} />
+      <Card title="Informasi Sistem">
+        <div className="grid grid-cols-2 gap-y-2 text-sm">
+          <div className="text-slate-500">Versi Aplikasi</div><div className="text-slate-900 font-mono">{APP_VERSION}</div>
+          <div className="text-slate-500">Nama Sistem</div><div className="text-slate-900">{APP_FULL_NAME}</div>
+          <div className="text-slate-500">Organisasi</div><div className="text-slate-900">{ORGANIZATION}</div>
+          <div className="text-slate-500">Storage</div><div className="text-slate-900">Browser localStorage</div>
+          <div className="text-slate-500">User Login</div><div className="text-slate-900">{user.nama} ({ROLE_META[user.role]?.label})</div>
         </div>
-
-        {filtered.length === 0 ? (
-          <EmptyState icon={HelpCircle} title="Tidak ada pertanyaan" description="Belum ada pertanyaan di kategori ini." />
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {filtered.map(q => {
-              const asker = findPegawai(data, q.askerId);
-              const routed = routedSMEs(q.domain);
-              return (
-                <button key={q.id} onClick={() => setViewing(q)}
-                  className="w-full text-left p-4 hover:bg-slate-50 flex items-start gap-3">
-                  <Avatar nama={asker?.nama || '??'} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="text-sm font-medium text-slate-800">{q.title}</span>
-                      <StatusBadge status={q.status} map={QUESTION_STATUS} />
-                    </div>
-                    <div className="text-xs text-slate-500 line-clamp-1">{q.body}</div>
-                    <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
-                      <span>{asker?.nama}</span><span>·</span>
-                      <span>{q.domain}</span><span>·</span>
-                      <span>{formatDate(q.askedAt)}</span><span>·</span>
-                      <span>{q.answers.length} jawaban</span>
-                      {q.status === 'open' && <Badge className="bg-blue-50 text-blue-700">→ {routed.length} SME</Badge>}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
       </Card>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Ajukan Pertanyaan ke SME" size="lg">
-        <div className="p-5 space-y-3">
-          <Input label="Judul Pertanyaan *" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
-            placeholder="contoh: Bagaimana cara assess risiko investasi sukuk?" />
-          <Select label="Domain (untuk routing ke SME)" value={form.domain} onChange={e => setForm({ ...form, domain: e.target.value })}
-            options={KM_DOMAINS.map(d => ({ value: d, label: d }))} />
-          <Textarea label="Detail pertanyaan *" value={form.body} onChange={e => setForm({ ...form, body: e.target.value })}
-            placeholder="Jelaskan konteks & detail pertanyaan..." />
-          <div className="text-[11px] text-slate-600 bg-blue-50 p-2.5 rounded-md flex items-start gap-2">
-            <Lightbulb className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-blue-600" />
-            <div>
-              <b>{routedSMEs(form.domain).length}</b> SME akan menerima notifikasi:{' '}
-              {routedSMEs(form.domain).map(s => findPegawai(data, s.pegawaiId)?.nama).filter(Boolean).join(', ') || 'belum ada SME di domain ini'}
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setModalOpen(false)}>Batal</Button>
-            <Button variant="primary" icon={SendIcon} onClick={submitQuestion}>Kirim Pertanyaan</Button>
-          </div>
+      <Card title="Backup & Restore Data">
+        <p className="text-sm text-slate-600 mb-3">
+          Export semua data aplikasi (master pegawai, katalog pelatihan, pengajuan, laporan, evaluasi, KM, TMS) sebagai file JSON. Disimpan lokal di browser Anda.
+        </p>
+        <div className="flex gap-2 flex-wrap">
+          <Button icon={Download} onClick={exportAll}>Export Semua Data</Button>
+          {user.role === ROLES.ADMIN && (
+            <Button variant="danger" icon={Trash2} onClick={() => {
+              if (window.confirm('PERHATIAN: Reset akan menghapus SEMUA data lokal dan mengembalikan ke seed data awal. Lanjutkan?')) {
+                onResetData();
+              }
+            }}>Reset ke Data Awal</Button>
+          )}
         </div>
-      </Modal>
+      </Card>
 
-      <Modal open={!!viewing} onClose={() => setViewing(null)} title="Detail Pertanyaan" size="xl">
-        {viewing && (() => {
-          const asker = findPegawai(data, viewing.askerId);
-          const routed = routedSMEs(viewing.domain);
-          const isAsker = viewing.askerId === CURRENT_USER_ID;
-          const sortedAnswers = viewing.answers.slice().sort((a, b) => b.votes - a.votes);
-          return (
-            <div className="p-5 space-y-4">
-              <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
-                <Avatar nama={asker?.nama || '??'} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-base font-semibold text-slate-800">{viewing.title}</h3>
-                    <StatusBadge status={viewing.status} map={QUESTION_STATUS} />
-                  </div>
-                  <div className="text-xs text-slate-500 mt-0.5">
-                    {asker?.nama} · {asker?.jabatan} · {formatDate(viewing.askedAt)} · Domain: <b>{viewing.domain}</b>
-                  </div>
-                </div>
-              </div>
-              <p className="text-sm text-slate-700 whitespace-pre-wrap">{viewing.body}</p>
-
-              <div className="flex items-center gap-2 text-xs text-slate-600 bg-blue-50/50 p-2 rounded-md">
-                <Compass className="w-3.5 h-3.5 text-blue-600" />
-                Di-route ke <b>{routed.length} SME</b>: {routed.map(s => findPegawai(data, s.pegawaiId)?.nama).filter(Boolean).join(', ') || '—'}
-              </div>
-
-              <div className="pt-3 border-t border-slate-100">
-                <div className="text-xs font-medium text-slate-600 mb-2">Jawaban ({sortedAnswers.length})</div>
-                <div className="space-y-3">
-                  {sortedAnswers.map(a => {
-                    const sme = findPegawai(data, a.smeId);
-                    return (
-                      <div key={a.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50/50">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Avatar nama={sme?.nama || '??'} size="xs" />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs font-medium text-slate-800">{sme?.nama} <Badge className="bg-violet-100 text-violet-700 ml-1"><Award className="w-3 h-3" />SME</Badge></div>
-                            <div className="text-[10px] text-slate-500">{formatDate(a.createdAt)}</div>
-                          </div>
-                          {a.promotedToAssetId && <Badge className="bg-emerald-100 text-emerald-700"><CheckCircle className="w-3 h-3" />Promoted to Asset</Badge>}
-                        </div>
-                        <p className="text-sm text-slate-700 whitespace-pre-wrap">{a.body}</p>
-                        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
-                          <Rating up={a.votes} down={0} onUp={() => voteAnswer(a.id, 1)} onDown={() => voteAnswer(a.id, -1)} compact />
-                          {isAsker && !a.promotedToAssetId && (
-                            <Button size="sm" icon={FileCheck} onClick={() => promoteToAsset(a)}>Promote ke Knowledge Asset</Button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {sortedAnswers.length === 0 && <div className="text-xs text-slate-500 italic">Belum ada jawaban. SME akan dapat notifikasi.</div>}
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 space-y-2">
-                <div className="text-xs font-medium text-slate-600">Tambah Jawaban</div>
-                <Textarea value={answerText} onChange={e => setAnswerText(e.target.value)}
-                  placeholder="Jawaban Anda sebagai SME / kolega..." />
-                <div className="flex justify-between items-center">
-                  {isAsker && viewing.status === 'answered' && (
-                    <Button icon={CheckCircle} onClick={markResolved}>Tandai Resolved</Button>
-                  )}
-                  <div className="ml-auto">
-                    <Button variant="primary" icon={SendIcon} onClick={submitAnswer}>Kirim Jawaban</Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-      </Modal>
+      <Card title="Tentang KMLS" className="border-emerald-200">
+        <div className="prose prose-sm max-w-none">
+          <p className="text-sm text-slate-700">
+            <strong>{APP_FULL_NAME}</strong> adalah sistem terpadu untuk pengelolaan end-to-end pelatihan pegawai BPKH, terintegrasi dengan Knowledge Management 4-pilar dan Talent Management 3-stage.
+          </p>
+          <p className="text-sm text-slate-600 mt-2">
+            Aplikasi mengikuti Prosedur Tetap tentang Manajemen Pengetahuan BPKH, dengan alur approval 10-tahap, formulir online sesuai Format Formulir Pengajuan, Laporan Pelaksanaan, dan Evaluasi Level 3 yang berlaku di BPKH.
+          </p>
+          <p className="text-xs text-slate-500 mt-3">© {new Date().getFullYear()} {ORGANIZATION}. Dikembangkan oleh MS Hadianto, SE, Ak, MM, CA, QIA, CACP, GRCP, GRCA, CCFA, CGP.</p>
+        </div>
+      </Card>
     </div>
   );
-};
+}
 
-// =================================================================================
-// MAIN APP
-// =================================================================================
+// =====================================================================
+// MAIN APP COMPONENT
+// =====================================================================
 
-const PAGE_META = {
-  'dashboard': { title: 'Dashboard', subtitle: 'Ringkasan eksekutif KMLS BPKH' },
-  'pengajuan': { title: 'Pengajuan Pelatihan', subtitle: 'Workflow end-to-end pengajuan s.d. laporan' },
-  'pegawai': { title: 'Direktori Pegawai', subtitle: 'Daftar pegawai BPKH & riwayat pengembangan' },
-  'km-sme': { title: 'SME Development', subtitle: 'Pilar 1 KM' },
-  'km-map': { title: 'Knowledge Map', subtitle: 'Pilar 2 KM' },
-  'km-cop': { title: 'Community of Practice', subtitle: 'Pilar 3 KM' },
-  'km-asset': { title: 'Knowledge Asset', subtitle: 'Pilar 4 KM · lifecycle, ratings & knowledge graph' },
-  'km-paths': { title: 'Learning Paths', subtitle: 'Kurikulum terstruktur per role' },
-  'km-skill': { title: 'Skill Matrix', subtitle: 'Pemetaan kompetensi & gap analysis' },
-  'km-qa': { title: 'Ask the Expert', subtitle: 'Q&A dengan auto-routing ke SME' },
-  'km-analytics': { title: 'KM Analytics', subtitle: 'Health score, dormant & contributor insights' },
-  'tms-overview': { title: 'Talent Management System', subtitle: 'Acquisition → Development → Alignment' },
-  'tms-9box': { title: '9-Box Talent Mapping', subtitle: 'Acquisition stage' },
-  'tms-pool': { title: 'Talent Pool', subtitle: 'Development & alignment stage' },
-  'tms-succession': { title: 'Succession Plan', subtitle: 'Alignment stage' },
-  'tms-promosi': { title: 'Workflow Promosi', subtitle: 'Alignment stage' },
-  'settings': { title: 'Pengaturan', subtitle: 'Konfigurasi aplikasi' },
-};
+export default function App() {
+  // Data state (persisted via localStorage)
+  const [employees, setEmployees]             = useLocalStorage(STORAGE_KEYS.EMPLOYEES, seedEmployees);
+  const [trainings, setTrainings]             = useLocalStorage(STORAGE_KEYS.TRAININGS, seedTrainingCatalog);
+  const [proposals, setProposals]             = useLocalStorage(STORAGE_KEYS.PROPOSALS, seedProposals);
+  const [reports, setReports]                 = useLocalStorage(STORAGE_KEYS.REPORTS, seedReports);
+  const [evaluations, setEvaluations]         = useLocalStorage(STORAGE_KEYS.EVALUATIONS, seedEvaluations);
+  const [sme, setSme]                         = useLocalStorage(STORAGE_KEYS.SME, seedSME);
+  const [knowledgeAssets, setKnowledgeAssets] = useLocalStorage(STORAGE_KEYS.KNOWLEDGE_ASSETS, seedKnowledgeAssets);
+  const [cop, setCop]                         = useLocalStorage(STORAGE_KEYS.COP, seedCoP);
 
-export default function KMLSApp() {
-  const [view, setView] = useState('dashboard');
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Session
+  const [sessionUserId, setSessionUserId] = useLocalStorage(STORAGE_KEYS.SESSION, null);
+  const user = useMemo(() => employees.find(e => e.id === sessionUserId), [employees, sessionUserId]);
+
+  // UI state
+  const [currentView, setCurrentView]   = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [toast, setToast] = useState({ message: '', type: 'success' });
+  const [focusProposalId, setFocusProposalId] = useState(null);
 
-  useEffect(() => {
-    (async () => {
-      const saved = await Store.load();
-      setData(saved || SEED_DATA);
-      setLoading(false);
-    })();
-  }, []);
+  const handleLogin = (emp) => {
+    if (emp) { setSessionUserId(emp.id); setCurrentView('dashboard'); }
+  };
+  const handleLogout = () => {
+    setSessionUserId(null);
+    setFocusProposalId(null);
+    setCurrentView('dashboard');
+  };
 
-  // Auto-save with debounce
-  useEffect(() => {
-    if (!data || loading) return;
-    const timer = setTimeout(() => { Store.save(data); }, 800);
-    return () => clearTimeout(timer);
-  }, [data, loading]);
+  const handleNavigate = (view, focusId) => {
+    setCurrentView(view);
+    if (focusId !== undefined) setFocusProposalId(focusId);
+  };
 
-  const showToast = useCallback((message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast({ message: '', type }), 2800);
-  }, []);
+  const handleResetData = () => {
+    Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
+    window.location.reload();
+  };
 
-  const handleReset = useCallback(async () => {
-    await Store.reset();
-    setData(SEED_DATA);
-    showToast('Data berhasil direset', 'info');
-  }, [showToast]);
-
-  const counts = useMemo(() => {
-    if (!data) return {};
-    return {
-      pendingPengajuan: data.pengajuan.filter(p => p.status === 'pending' || p.status === 'review').length,
-      openQuestions: (data.questions || []).filter(q => q.status === 'open').length,
-    };
-  }, [data]);
-
-  if (loading || !data) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 rounded-xl bg-emerald-700 flex items-center justify-center mx-auto mb-3 animate-pulse">
-            <GraduationCap className="w-6 h-6 text-white" />
-          </div>
-          <div className="text-sm font-medium text-slate-700">Memuat KMLS...</div>
-        </div>
-      </div>
-    );
+  // If not logged in → show login screen
+  if (!user) {
+    return <LoginScreen employees={employees} onLogin={handleLogin} />;
   }
 
+  // Compute notification count: pengajuan menunggu aksi user
+  const myInbox = proposals.filter(p => stageByKey(p.stage).actor === user.role).length;
+
+  // Render view
   const renderView = () => {
-    switch (view) {
-      case 'dashboard': return <Dashboard data={data} onNavigate={setView} />;
-      case 'pengajuan': return <PengajuanModule data={data} onUpdate={setData} showToast={showToast} />;
-      case 'pegawai': return <PegawaiModule data={data} showToast={showToast} />;
-      case 'km-sme': return <SMEModule data={data} onUpdate={setData} showToast={showToast} />;
-      case 'km-map': return <KnowledgeMapModule data={data} />;
-      case 'km-cop': return <CoPModule data={data} />;
-      case 'km-asset': return <KnowledgeAssetModule data={data} onUpdate={setData} showToast={showToast} onNavigate={setView} />;
-      case 'km-paths': return <LearningPathsModule data={data} onUpdate={setData} showToast={showToast} />;
-      case 'km-skill': return <SkillMatrixModule data={data} />;
-      case 'km-qa': return <AskExpertModule data={data} onUpdate={setData} showToast={showToast} />;
-      case 'km-analytics': return <KMAnalyticsModule data={data} onNavigate={setView} />;
-      case 'tms-overview': return <TMSOverviewModule data={data} onNavigate={setView} />;
-      case 'tms-9box': return <NineBoxModule data={data} />;
-      case 'tms-pool': return <TalentPoolModule data={data} />;
-      case 'tms-succession': return <SuccessionModule data={data} />;
-      case 'tms-promosi': return <PromosiModule data={data} onUpdate={setData} showToast={showToast} />;
-      case 'settings': return <SettingsModule data={data} onReset={handleReset} showToast={showToast} />;
-      default: return <Dashboard data={data} onNavigate={setView} />;
+    switch (currentView) {
+      case 'dashboard':
+        return <Dashboard user={user} employees={employees} proposals={proposals} trainings={trainings} reports={reports}
+          onNavigate={(view, id) => handleNavigate(view, id)} />;
+      case 'pengajuan':
+        return <PengajuanView user={user} employees={employees} trainings={trainings} proposals={proposals}
+          setProposals={setProposals} focusId={focusProposalId} onClearFocus={() => setFocusProposalId(null)} />;
+      case 'approval':
+        // Approval = inbox view of pengajuan
+        return <PengajuanView user={user} employees={employees} trainings={trainings} proposals={proposals}
+          setProposals={setProposals} focusId={focusProposalId} onClearFocus={() => setFocusProposalId(null)} />;
+      case 'st':
+        return <SuratTugasView user={user} employees={employees} proposals={proposals} />;
+      case 'laporan':
+        return <LaporanView user={user} employees={employees} proposals={proposals} setProposals={setProposals}
+          reports={reports} setReports={setReports} evaluations={evaluations} setEvaluations={setEvaluations} />;
+      case 'katalog':
+        return <MasterPelatihan user={user} trainings={trainings} setTrainings={setTrainings} />;
+      case 'pegawai':
+        return <MasterPegawai user={user} employees={employees} setEmployees={setEmployees} />;
+      case 'kategori':
+        return <MasterKategori trainings={trainings} proposals={proposals} />;
+      case 'km':
+        return <KMView user={user} employees={employees} sme={sme} setSme={setSme}
+          knowledgeAssets={knowledgeAssets} setKnowledgeAssets={setKnowledgeAssets}
+          cop={cop} setCop={setCop} proposals={proposals} />;
+      case 'tms':
+        return <TMSView user={user} employees={employees} proposals={proposals} />;
+      case 'settings':
+        return <SettingsView user={user} onResetData={handleResetData} />;
+      default:
+        return <Dashboard user={user} employees={employees} proposals={proposals} trainings={trainings} reports={reports}
+          onNavigate={(view, id) => handleNavigate(view, id)} />;
     }
   };
 
-  const meta = PAGE_META[view] || { title: '—', subtitle: '' };
-
   return (
-    <div className="h-screen bg-slate-50 flex overflow-hidden">
-      <Sidebar active={view} onChange={setView} counts={counts}
-        collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <TopBar title={meta.title} subtitle={meta.subtitle}
-          data={data} onNavigate={setView}
-          onMenu={() => setSidebarCollapsed(!sidebarCollapsed)}
-          actions={
-            <button className="relative p-1.5 hover:bg-slate-100 rounded-md">
-              <Bell className="w-4 h-4 text-slate-600" />
-              {counts.pendingPengajuan > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full" />
-              )}
-            </button>
-          } />
-        <div className="flex-1 overflow-y-auto">
+    <div className="min-h-screen bg-slate-50 flex">
+      <Sidebar user={user} currentView={currentView} onNavigate={handleNavigate}
+        collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} />
+      <div className="flex-1 flex flex-col min-w-0">
+        <Topbar user={user} onLogout={handleLogout} notifications={myInbox} />
+        <main className="flex-1 overflow-y-auto p-6">
           {renderView()}
-          <AppFooter />
-        </div>
-      </main>
-      <Toast message={toast.message} type={toast.type} />
-      <style>{`
-        @keyframes slide-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-slide-up { animation: slide-up 0.2s ease-out; }
-        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-      `}</style>
+        </main>
+      </div>
     </div>
   );
 }
