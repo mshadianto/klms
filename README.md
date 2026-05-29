@@ -17,6 +17,7 @@
 [![License](https://img.shields.io/badge/license-personal--use-blue)](#-license--credits)
 
 [**🚀 Try Live Demo**](https://klms.mshadianto.id/) ·
+[**📕 Manual Book**](./docs/manual-book.html) ·
 [**📖 Architecture**](./CLAUDE.md) ·
 [**🐛 Report Issue**](https://github.com/mshadianto/klms/issues) ·
 [**👨‍💻 Developer**](https://github.com/mshadianto)
@@ -165,6 +166,24 @@ flowchart LR
 
 </details>
 
+## 📕 Manual Book
+
+Dokumentasi lengkap pengguna & administrator tersedia dalam bentuk **HTML print-ready** (33 halaman A4) di [`docs/manual-book.html`](./docs/manual-book.html).
+
+**Isi:** Pengantar & disclaimer · Instalasi & navigasi · Panduan tiap modul (Dashboard, Pengajuan, Pegawai, 4 pilar KM + 4 modul extended, 5 modul TMS) · Pengaturan & admin · 3 workflow end-to-end · FAQ · Troubleshooting · Glosarium 28 istilah · Roadmap.
+
+**Cara ekspor ke PDF:**
+
+```
+1. Buka docs/manual-book.html di browser
+2. Tekan Ctrl + P (Cmd + P di Mac)
+3. Pilih "Save as PDF"
+4. Aktifkan "Background graphics" (penting — agar cover & callout berwarna ikut tercetak)
+5. Save → KMLS-Manual-Book-v1.1.pdf
+```
+
+> 💡 File HTML bersifat *self-contained* — tidak butuh server, tidak butuh asset eksternal, bisa dibuka offline.
+
 ## 🛠️ Tech Stack
 
 | Layer | Stack |
@@ -189,6 +208,8 @@ klms/
 │   └── index.css            # Tailwind + base reset
 ├── public/
 │   └── CNAME                # Custom domain → klms.mshadianto.id
+├── docs/
+│   └── manual-book.html     # 📕 Manual book lengkap (print-ready → PDF)
 ├── mockups/                 # 3 HTML design mockups (standalone)
 ├── .github/workflows/
 │   └── deploy.yml           # Auto-deploy ke GitHub Pages

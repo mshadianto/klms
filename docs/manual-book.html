@@ -1,0 +1,1993 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<title>KMLS — Manual Book v1.1</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  /* ============================================================
+     KMLS Manual Book — Print-ready stylesheet
+     Buka file ini di browser → Ctrl/Cmd + P → "Save as PDF"
+     Saran: A4, margin "Default", background graphics ON.
+     ============================================================ */
+
+  :root {
+    --violet-50: #f5f3ff;
+    --violet-100: #ede9fe;
+    --violet-500: #8b5cf6;
+    --violet-600: #7c3aed;
+    --violet-700: #6d28d9;
+    --slate-50: #f8fafc;
+    --slate-100: #f1f5f9;
+    --slate-200: #e2e8f0;
+    --slate-300: #cbd5e1;
+    --slate-500: #64748b;
+    --slate-600: #475569;
+    --slate-700: #334155;
+    --slate-800: #1e293b;
+    --slate-900: #0f172a;
+    --amber-50: #fffbeb;
+    --amber-100: #fef3c7;
+    --amber-300: #fcd34d;
+    --amber-500: #f59e0b;
+    --amber-700: #b45309;
+    --amber-800: #92400e;
+    --emerald-50: #ecfdf5;
+    --emerald-500: #10b981;
+    --emerald-700: #047857;
+    --rose-50: #fff1f2;
+    --rose-500: #f43f5e;
+    --rose-700: #be123c;
+    --blue-50: #eff6ff;
+    --blue-500: #3b82f6;
+    --blue-700: #1d4ed8;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--slate-800);
+    line-height: 1.55;
+    font-size: 11pt;
+    background: white;
+  }
+
+  /* Screen layout (when previewing in browser) */
+  @media screen {
+    body {
+      background: #e5e7eb;
+      padding: 24px 0;
+    }
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto 16px;
+      padding: 22mm 18mm;
+      background: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+  }
+
+  /* Print layout */
+  @page {
+    size: A4;
+    margin: 18mm 16mm 18mm 16mm;
+  }
+  @media print {
+    body { background: white; }
+    .page {
+      padding: 0;
+      page-break-after: always;
+      break-after: page;
+    }
+    .page:last-child { page-break-after: auto; }
+    a { color: var(--violet-700); text-decoration: none; }
+    .no-print { display: none !important; }
+  }
+
+  /* ============== Typography ============== */
+  h1, h2, h3, h4 {
+    color: var(--slate-900);
+    line-height: 1.2;
+    margin: 0 0 .5em;
+    font-weight: 700;
+  }
+  h1 { font-size: 26pt; }
+  h2 {
+    font-size: 18pt;
+    border-bottom: 2px solid var(--violet-600);
+    padding-bottom: 6px;
+    margin-top: 0;
+  }
+  h3 {
+    font-size: 13pt;
+    color: var(--violet-700);
+    margin-top: 1.2em;
+  }
+  h4 {
+    font-size: 11pt;
+    color: var(--slate-700);
+    margin-top: 1em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  p { margin: 0 0 0.7em; }
+  ul, ol { margin: 0 0 0.8em; padding-left: 1.4em; }
+  li { margin-bottom: 0.25em; }
+
+  code, kbd {
+    font-family: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+    font-size: 0.9em;
+    background: var(--slate-100);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--slate-800);
+  }
+  kbd {
+    border: 1px solid var(--slate-300);
+    box-shadow: 0 1px 0 var(--slate-300);
+    padding: 1px 6px;
+  }
+  pre {
+    background: var(--slate-900);
+    color: #e2e8f0;
+    padding: 12px 14px;
+    border-radius: 6px;
+    font-size: 9.5pt;
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; }
+
+  /* ============== Page break helpers ============== */
+  .pb { page-break-after: always; break-after: page; }
+  .no-break { page-break-inside: avoid; break-inside: avoid; }
+
+  /* ============== Cover ============== */
+  .cover {
+    height: 261mm; /* A4 minus margins */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: linear-gradient(140deg, var(--violet-700) 0%, var(--violet-500) 60%, #ec4899 100%);
+    color: white;
+    padding: 30mm 22mm;
+    margin: -22mm -18mm;
+    border-radius: 0;
+  }
+  @media print {
+    .cover { margin: 0; height: auto; min-height: 261mm; }
+  }
+  .cover .brand {
+    display: flex; align-items: center; gap: 14px;
+    font-weight: 700; font-size: 14pt; letter-spacing: 0.05em;
+    text-transform: uppercase; opacity: 0.92;
+  }
+  .cover .brand .logo {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: rgba(255,255,255,0.18);
+    display: grid; place-items: center;
+    font-size: 22pt; font-weight: 800;
+    backdrop-filter: blur(8px);
+  }
+  .cover h1 {
+    color: white; font-size: 44pt; line-height: 1.05;
+    margin-top: 60px;
+  }
+  .cover .sub {
+    font-size: 16pt; opacity: 0.92; margin-top: 16px; max-width: 140mm;
+  }
+  .cover .meta {
+    font-size: 10.5pt; opacity: 0.88;
+    border-top: 1px solid rgba(255,255,255,0.35);
+    padding-top: 14px;
+  }
+  .cover .meta strong { font-weight: 700; }
+  .cover .meta .row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+
+  /* ============== Disclaimer banner ============== */
+  .disclaimer {
+    background: var(--amber-50);
+    border: 1.5px solid var(--amber-300);
+    border-left: 5px solid var(--amber-500);
+    padding: 14px 16px;
+    border-radius: 6px;
+    color: var(--amber-800);
+    margin: 14px 0 18px;
+  }
+  .disclaimer strong { color: var(--amber-800); }
+  .disclaimer .label {
+    display: inline-block; background: var(--amber-500); color: white;
+    font-size: 8.5pt; font-weight: 700; padding: 2px 8px;
+    border-radius: 999px; margin-right: 8px; letter-spacing: 0.05em;
+  }
+
+  /* ============== Callouts ============== */
+  .note, .tip, .warn, .danger {
+    padding: 11px 14px;
+    border-radius: 6px;
+    margin: 10px 0 14px;
+    font-size: 10.5pt;
+    border-left: 4px solid;
+  }
+  .note   { background: var(--blue-50);    border-color: var(--blue-500);    color: var(--blue-700); }
+  .tip    { background: var(--emerald-50); border-color: var(--emerald-500); color: var(--emerald-700); }
+  .warn   { background: var(--amber-50);   border-color: var(--amber-500);   color: var(--amber-800); }
+  .danger { background: var(--rose-50);    border-color: var(--rose-500);    color: var(--rose-700); }
+  .note strong, .tip strong, .warn strong, .danger strong { font-weight: 700; }
+
+  /* ============== Cards & Grid ============== */
+  .grid-2 {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .grid-3 {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+  }
+  .card {
+    border: 1px solid var(--slate-200);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: white;
+  }
+  .card h4 {
+    margin-top: 0;
+    font-size: 10pt;
+    color: var(--violet-700);
+  }
+  .card.kpi { text-align: center; padding: 14px 10px; }
+  .card.kpi .num { font-size: 22pt; font-weight: 800; color: var(--violet-700); line-height: 1; }
+  .card.kpi .lbl { font-size: 9pt; color: var(--slate-600); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* ============== Tables ============== */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6px 0 14px;
+    font-size: 10.5pt;
+  }
+  th, td {
+    border: 1px solid var(--slate-200);
+    padding: 7px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: var(--violet-50);
+    color: var(--violet-700);
+    font-weight: 700;
+    font-size: 10pt;
+  }
+  tr:nth-child(even) td { background: var(--slate-50); }
+
+  /* ============== Badges ============== */
+  .badge {
+    display: inline-block; padding: 2px 9px; border-radius: 999px;
+    font-size: 8.5pt; font-weight: 600; letter-spacing: 0.02em;
+  }
+  .badge.violet  { background: var(--violet-100); color: var(--violet-700); }
+  .badge.amber   { background: var(--amber-100); color: var(--amber-800); }
+  .badge.emerald { background: var(--emerald-50); color: var(--emerald-700); border: 1px solid #a7f3d0; }
+  .badge.blue    { background: var(--blue-50); color: var(--blue-700); border: 1px solid #bfdbfe; }
+  .badge.rose    { background: var(--rose-50); color: var(--rose-700); border: 1px solid #fecdd3; }
+  .badge.slate   { background: var(--slate-100); color: var(--slate-700); }
+
+  /* ============== TOC ============== */
+  .toc {
+    list-style: none; padding: 0; margin: 0;
+    column-count: 1;
+  }
+  .toc li {
+    padding: 7px 0;
+    border-bottom: 1px dotted var(--slate-300);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .toc li .num {
+    font-weight: 700; color: var(--violet-700);
+    min-width: 36px;
+  }
+  .toc li .title { flex: 1; padding-left: 8px; color: var(--slate-800); }
+  .toc li .page-no { color: var(--slate-500); font-variant-numeric: tabular-nums; }
+  .toc li.section-head {
+    border-bottom: 2px solid var(--violet-600);
+    margin-top: 14px;
+    padding-bottom: 5px;
+  }
+  .toc li.section-head .title { font-weight: 700; color: var(--violet-700); text-transform: uppercase; font-size: 10pt; letter-spacing: 0.06em; }
+
+  /* ============== Module section banner ============== */
+  .module-banner {
+    background: linear-gradient(135deg, var(--violet-600), var(--violet-500));
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .module-banner .icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: rgba(255,255,255,0.18);
+    display: grid; place-items: center;
+    font-size: 20pt; font-weight: 800;
+  }
+  .module-banner h3 { color: white; margin: 0; font-size: 14pt; }
+  .module-banner .sub { font-size: 10pt; opacity: 0.9; }
+
+  /* ============== Step lists ============== */
+  ol.steps { counter-reset: stp; list-style: none; padding-left: 0; }
+  ol.steps li {
+    counter-increment: stp;
+    padding: 6px 0 6px 36px;
+    position: relative;
+  }
+  ol.steps li::before {
+    content: counter(stp);
+    position: absolute; left: 0; top: 4px;
+    width: 24px; height: 24px;
+    background: var(--violet-600); color: white;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 9.5pt; font-weight: 700;
+  }
+
+  /* ============== Footer per page (printed) ============== */
+  .doc-footer {
+    margin-top: 18px;
+    padding-top: 8px;
+    border-top: 1px solid var(--slate-200);
+    font-size: 8.5pt;
+    color: var(--slate-500);
+    display: flex; justify-content: space-between;
+  }
+
+  /* ============== Misc ============== */
+  hr { border: 0; border-top: 1px solid var(--slate-200); margin: 18px 0; }
+  .muted { color: var(--slate-500); }
+  .small { font-size: 9.5pt; }
+  .center { text-align: center; }
+  .mono { font-family: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace; }
+</style>
+</head>
+<body>
+
+<!-- =====================================================================
+     COVER
+     ===================================================================== -->
+<section class="page no-break">
+  <div class="cover">
+    <div>
+      <div class="brand">
+        <div class="logo">K</div>
+        <div>KMLS</div>
+      </div>
+      <h1>Manual Book<br/>Pengguna &amp; Administrator</h1>
+      <div class="sub">
+        Knowledge Management &amp; Learning System — Talent Management System.
+        Panduan lengkap untuk seluruh modul, alur kerja, dan pengelolaan data.
+      </div>
+    </div>
+    <div class="meta">
+      <div class="row"><span>Versi aplikasi</span><strong>v1.1.0</strong></div>
+      <div class="row"><span>Tanggal dokumen</span><strong>Mei 2026</strong></div>
+      <div class="row"><span>Penulis</span><strong>MS Hadianto</strong></div>
+      <div class="row"><span>Live URL</span><strong>klms.mshadianto.id</strong></div>
+      <div class="row"><span>Sifat dokumen</span><strong>Prototipe pribadi — bukan produk resmi</strong></div>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     DISCLAIMER
+     ===================================================================== -->
+<section class="page">
+  <h2>Disclaimer Penting</h2>
+
+  <div class="disclaimer">
+    <span class="label">PERHATIAN</span>
+    <strong>KMLS adalah prototipe pribadi yang dibuat oleh MS Hadianto.</strong>
+    Aplikasi ini <strong>BUKAN</strong> aplikasi resmi Badan Pengelola Keuangan Haji (BPKH).
+    Seluruh nama pegawai, divisi, jabatan, catatan pelatihan, aset pengetahuan,
+    pertanyaan, dan dokumen yang tampil di dalam aplikasi adalah <strong>fiktif</strong>
+    dan disusun semata untuk keperluan demonstrasi konsep KM &amp; TMS.
+  </div>
+
+  <h3>Tujuan dokumen ini</h3>
+  <p>
+    Manual book ini menjelaskan cara menggunakan KMLS sebagai <em>concept exploration</em>:
+    bagaimana modul-modul KM 4-pilar dan TMS 3-stage diorganisir, bagaimana alur kerja
+    end-to-end dari pengajuan pelatihan sampai harvesting aset pengetahuan, serta
+    bagaimana data prototipe dipersist secara lokal di browser.
+  </p>
+
+  <h3>Apa yang TIDAK dilakukan dokumen ini</h3>
+  <ul>
+    <li>Tidak mengklaim afiliasi institusional dengan BPKH.</li>
+    <li>Tidak menggambarkan data, kebijakan, atau prosedur resmi BPKH.</li>
+    <li>Tidak menjadi acuan kepatuhan, audit, atau pengambilan keputusan operasional.</li>
+  </ul>
+
+  <h3>Lisensi &amp; penggunaan ulang</h3>
+  <p>
+    Source code aplikasi tersedia publik di repositori GitHub pribadi penulis.
+    Apabila Anda tertarik mengadopsi pola arsitektur, alur kerja, atau visual yang ada
+    di KMLS untuk konteks organisasi Anda sendiri, silakan — namun ganti seluruh seed
+    data, hapus referensi ke "BPKH", dan sesuaikan terminologi dengan domain Anda.
+  </p>
+
+  <h3>Kontak penulis</h3>
+  <table>
+    <tr><th style="width:32%">Nama</th><td>Sopian Hadianto (MS Hadianto)</td></tr>
+    <tr><th>Email</th><td><span class="mono">sopian.hadianto@gmail.com</span></td></tr>
+    <tr><th>Repositori</th><td>github.com/mshadianto/klms</td></tr>
+    <tr><th>Live demo</th><td>https://klms.mshadianto.id/</td></tr>
+  </table>
+</section>
+
+<!-- =====================================================================
+     TABLE OF CONTENTS
+     ===================================================================== -->
+<section class="page">
+  <h2>Daftar Isi</h2>
+  <ul class="toc">
+
+    <li class="section-head"><span class="title">BAGIAN I — PENGANTAR</span></li>
+    <li><span class="num">1.</span><span class="title">Tentang KMLS</span><span class="page-no">5</span></li>
+    <li><span class="num">2.</span><span class="title">Arsitektur singkat</span><span class="page-no">6</span></li>
+    <li><span class="num">3.</span><span class="title">Instalasi &amp; menjalankan</span><span class="page-no">7</span></li>
+    <li><span class="num">4.</span><span class="title">Mengenal antarmuka</span><span class="page-no">8</span></li>
+
+    <li class="section-head"><span class="title">BAGIAN II — MODUL UTAMA</span></li>
+    <li><span class="num">5.</span><span class="title">Dashboard</span><span class="page-no">9</span></li>
+    <li><span class="num">6.</span><span class="title">Pengajuan Pelatihan</span><span class="page-no">10</span></li>
+    <li><span class="num">7.</span><span class="title">Direktori Pegawai</span><span class="page-no">12</span></li>
+
+    <li class="section-head"><span class="title">BAGIAN III — KNOWLEDGE MANAGEMENT</span></li>
+    <li><span class="num">8.</span><span class="title">SME Development</span><span class="page-no">13</span></li>
+    <li><span class="num">9.</span><span class="title">Knowledge Map</span><span class="page-no">14</span></li>
+    <li><span class="num">10.</span><span class="title">Community of Practice</span><span class="page-no">15</span></li>
+    <li><span class="num">11.</span><span class="title">Knowledge Asset</span><span class="page-no">16</span></li>
+    <li><span class="num">12.</span><span class="title">Learning Paths</span><span class="page-no">19</span></li>
+    <li><span class="num">13.</span><span class="title">Skill Matrix</span><span class="page-no">20</span></li>
+    <li><span class="num">14.</span><span class="title">Ask the Expert</span><span class="page-no">21</span></li>
+    <li><span class="num">15.</span><span class="title">KM Analytics</span><span class="page-no">22</span></li>
+
+    <li class="section-head"><span class="title">BAGIAN IV — TALENT MANAGEMENT</span></li>
+    <li><span class="num">16.</span><span class="title">TMS Overview</span><span class="page-no">23</span></li>
+    <li><span class="num">17.</span><span class="title">9-Box Talent Mapping</span><span class="page-no">24</span></li>
+    <li><span class="num">18.</span><span class="title">Talent Pool</span><span class="page-no">25</span></li>
+    <li><span class="num">19.</span><span class="title">Succession Plan</span><span class="page-no">26</span></li>
+    <li><span class="num">20.</span><span class="title">Workflow Promosi</span><span class="page-no">27</span></li>
+
+    <li class="section-head"><span class="title">BAGIAN V — ADMIN &amp; LAINNYA</span></li>
+    <li><span class="num">21.</span><span class="title">Pengaturan</span><span class="page-no">28</span></li>
+    <li><span class="num">22.</span><span class="title">Workflow end-to-end</span><span class="page-no">29</span></li>
+    <li><span class="num">23.</span><span class="title">FAQ</span><span class="page-no">30</span></li>
+    <li><span class="num">24.</span><span class="title">Troubleshooting</span><span class="page-no">31</span></li>
+    <li><span class="num">25.</span><span class="title">Glosarium</span><span class="page-no">32</span></li>
+    <li><span class="num">26.</span><span class="title">Catatan rilis</span><span class="page-no">33</span></li>
+
+  </ul>
+</section>
+
+<!-- =====================================================================
+     BAGIAN I — PENGANTAR
+     ===================================================================== -->
+
+<!-- 1. Tentang KMLS -->
+<section class="page">
+  <h2>1. Tentang KMLS</h2>
+
+  <p>
+    <strong>KMLS</strong> (Knowledge Management &amp; Learning System) adalah aplikasi web
+    satu-halaman (Single Page Application) yang mensimulasikan platform terpadu untuk
+    mengelola tiga domain utama dalam pengembangan sumber daya manusia:
+  </p>
+
+  <div class="grid-3" style="margin: 14px 0;">
+    <div class="card">
+      <h4>📚 Knowledge Management</h4>
+      <p class="small">SME, knowledge map, CoP, aset pengetahuan, learning paths, skill matrix, Q&amp;A, analytics.</p>
+    </div>
+    <div class="card">
+      <h4>🎓 Learning &amp; Development</h4>
+      <p class="small">Pengajuan pelatihan end-to-end: dari draft, approval HR, eksekusi, sampai laporan dan harvesting.</p>
+    </div>
+    <div class="card">
+      <h4>⭐ Talent Management</h4>
+      <p class="small">9-Box mapping, talent pool, succession planning, workflow promosi.</p>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <ul>
+    <li>Menjadi <em>visual reference</em> untuk konsep KM 4-pilar dan TMS 3-stage dalam konteks BUMN/Lembaga.</li>
+    <li>Mendemonstrasikan integrasi alur pengajuan pelatihan ↔ aset pengetahuan ↔ kompetensi pegawai.</li>
+    <li>Menjadi titik awal eksplorasi UX/UI sebelum investasi pada platform enterprise.</li>
+  </ul>
+
+  <h3>Bukan apa</h3>
+  <ul>
+    <li>Bukan sistem produksi — tidak ada backend, tidak ada multi-user, tidak ada autentikasi.</li>
+    <li>Bukan SaaS — semua data tersimpan di <span class="mono">localStorage</span> browser pengguna.</li>
+    <li>Bukan produk resmi BPKH (lihat halaman disclaimer).</li>
+  </ul>
+
+  <h3>Karakteristik teknis</h3>
+  <table>
+    <tr><th style="width:32%">Tipe</th><td>Frontend-only Single Page Application</td></tr>
+    <tr><th>Framework</th><td>React 18 (Vite)</td></tr>
+    <tr><th>Styling</th><td>Tailwind CSS</td></tr>
+    <tr><th>Ikon</th><td>lucide-react</td></tr>
+    <tr><th>Persistence</th><td><span class="mono">localStorage</span> (key: <span class="mono">kmls:appdata:v2</span>)</td></tr>
+    <tr><th>Deploy</th><td>GitHub Pages + Cloudflare DNS (klms.mshadianto.id)</td></tr>
+    <tr><th>Audience</th><td>Praktisi KM, HR, L&amp;D, Talent Management</td></tr>
+    <tr><th>Lisensi</th><td>Open source, personal portfolio</td></tr>
+  </table>
+</section>
+
+<!-- 2. Arsitektur singkat -->
+<section class="page">
+  <h2>2. Arsitektur Singkat</h2>
+
+  <h3>Struktur file</h3>
+  <pre><code>klms/
+├── src/
+│   ├── App.jsx        ← seluruh aplikasi (~3.400 baris)
+│   ├── main.jsx       ← React entrypoint
+│   └── index.css      ← Tailwind directives
+├── public/
+│   └── CNAME          ← custom domain marker
+├── mockups/           ← HTML mockup statis (referensi desain)
+├── index.html         ← Vite shell
+├── vite.config.js     ← base: '/'
+└── .github/workflows/
+    └── deploy.yml     ← auto deploy ke GitHub Pages</code></pre>
+
+  <h3>Mengapa single-file?</h3>
+  <p>
+    Seluruh modul, primitive UI, seed data, dan state management berada di
+    <span class="mono">src/App.jsx</span>. Pendekatan ini dipilih supaya prototipe mudah
+    dibaca, mudah di-fork, dan mudah dideploy tanpa banyak file moving parts.
+    Untuk produksi sebenarnya, file ini harus dipecah per-modul (lihat
+    <em>Catatan rilis</em>).
+  </p>
+
+  <h3>State model</h3>
+  <p>
+    KMLS memiliki <strong>satu state tree global</strong> bernama <span class="mono">data</span>
+    yang dipegang oleh komponen <span class="mono">KMLSApp</span> dan diturunkan ke setiap modul.
+    Modul yang melakukan perubahan menerima callback <span class="mono">onUpdate(newData)</span>
+    dan mengembalikan seluruh objek pengganti (immutable update).
+  </p>
+
+  <pre><code>KMLSApp (data state)
+  ├── Sidebar           (read-only data untuk badge counts)
+  ├── TopBar            (read-only data untuk global search)
+  ├── &lt;ActiveModule /&gt; ({ data, onUpdate, showToast, onNavigate })
+  └── AppFooter</code></pre>
+
+  <h3>Pilar Knowledge Management</h3>
+  <ol class="steps">
+    <li><strong>SME Development</strong> — identifikasi &amp; pengembangan Subject Matter Expert.</li>
+    <li><strong>Knowledge Map</strong> — pemetaan domain &amp; expertise.</li>
+    <li><strong>Community of Practice</strong> — pembentukan komunitas berbagi.</li>
+    <li><strong>Knowledge Asset</strong> — dokumen, video, SOP, lesson learned.</li>
+  </ol>
+
+  <h3>Stage Talent Management</h3>
+  <ol class="steps">
+    <li><strong>Acquisition</strong> — 9-Box mapping untuk mengidentifikasi posisi setiap pegawai.</li>
+    <li><strong>Development</strong> — talent pool untuk mengelola star &amp; high-potential.</li>
+    <li><strong>Alignment</strong> — succession plan &amp; workflow promosi.</li>
+  </ol>
+
+  <div class="note">
+    <strong>Catatan teknis:</strong> Tidak ada router (react-router), tidak ada reducer
+    (redux/zustand), dan tidak ada API call. Semua "navigasi" adalah pergantian state
+    <span class="mono">view</span> yang menentukan modul mana yang di-render.
+  </div>
+</section>
+
+<!-- 3. Instalasi & menjalankan -->
+<section class="page">
+  <h2>3. Instalasi &amp; Menjalankan</h2>
+
+  <h3>Prasyarat</h3>
+  <table>
+    <tr><th style="width:32%">Node.js</th><td>v18 atau lebih baru (LTS direkomendasikan)</td></tr>
+    <tr><th>Package manager</th><td>npm (bawaan Node) atau pnpm/yarn</td></tr>
+    <tr><th>Browser</th><td>Chrome / Edge / Firefox / Safari versi terbaru</td></tr>
+    <tr><th>RAM minimum</th><td>2 GB</td></tr>
+    <tr><th>Koneksi internet</th><td>Hanya untuk install dependency dan deploy</td></tr>
+  </table>
+
+  <h3>Langkah instalasi</h3>
+  <ol class="steps">
+    <li>Clone repositori: <code>git clone https://github.com/mshadianto/klms.git</code></li>
+    <li>Masuk ke folder: <code>cd klms</code></li>
+    <li>Install dependency: <code>npm install</code></li>
+    <li>Jalankan dev server: <code>npm run dev</code></li>
+    <li>Buka browser ke <code>http://localhost:5173/</code></li>
+  </ol>
+
+  <h3>Perintah lain</h3>
+  <table>
+    <tr><th style="width:32%">Perintah</th><th>Kegunaan</th></tr>
+    <tr><td><code>npm run dev</code></td><td>Menjalankan server pengembangan dengan hot reload.</td></tr>
+    <tr><td><code>npm run build</code></td><td>Membuat build produksi di folder <span class="mono">dist/</span>.</td></tr>
+    <tr><td><code>npm run preview</code></td><td>Preview hasil build produksi secara lokal.</td></tr>
+  </table>
+
+  <h3>Akses versi live</h3>
+  <p>
+    Anda tidak perlu menginstal apapun untuk mencoba KMLS. Buka langsung di browser:
+  </p>
+  <p class="center">
+    <strong style="font-size: 14pt; color: var(--violet-700);">https://klms.mshadianto.id/</strong>
+  </p>
+
+  <div class="tip">
+    <strong>Tip:</strong> Karena seluruh data disimpan di browser, mencoba versi live <em>tidak akan</em>
+    mengganggu data orang lain. Setiap browser punya state-nya sendiri.
+  </div>
+
+  <h3>Reset data ke kondisi awal</h3>
+  <p>Ada tiga cara mereset data KMLS:</p>
+  <ol class="steps">
+    <li>Lewat menu <strong>Pengaturan → Reset Data</strong> di dalam aplikasi.</li>
+    <li>Buka DevTools (F12) → tab <em>Application/Storage</em> → hapus key <span class="mono">kmls:appdata:v2</span>.</li>
+    <li>Hard reload dengan menghapus seluruh site data dari browser settings.</li>
+  </ol>
+
+  <div class="warn">
+    <strong>Hati-hati:</strong> Reset bersifat permanen dalam browser tersebut. Semua bookmark,
+    rating, komentar, dan pengajuan yang Anda buat akan hilang dan kembali ke seed data.
+  </div>
+</section>
+
+<!-- 4. Mengenal antarmuka -->
+<section class="page">
+  <h2>4. Mengenal Antarmuka</h2>
+
+  <p>Layout KMLS dibagi menjadi empat area:</p>
+
+  <h3>1. Sidebar (kiri)</h3>
+  <p>
+    Menampung seluruh navigasi modul, dikelompokkan menjadi empat seksi:
+    <strong>Utama</strong>, <strong>Knowledge Management</strong>,
+    <strong>Talent Management</strong>, dan <strong>Sistem</strong>.
+    Beberapa menu menampilkan badge angka di sebelah kanan, yang menandakan jumlah item
+    yang membutuhkan perhatian (misal: pengajuan pending, pertanyaan terbuka).
+  </p>
+  <p>
+    Sidebar dapat dilipat menjadi mode <em>collapsed</em> (hanya ikon) dengan menekan tombol
+    di header sidebar — berguna untuk layar kecil atau memaksimalkan area konten.
+  </p>
+
+  <h3>2. TopBar (atas)</h3>
+  <p>
+    Berisi:
+  </p>
+  <ul>
+    <li><strong>Judul &amp; subtitle modul aktif</strong> — diambil dari konfigurasi <span class="mono">PAGE_META</span>.</li>
+    <li><strong>Global search</strong> — pencarian lintas entitas (pegawai, aset, SME, pengajuan, pertanyaan). Klik hasilnya untuk langsung lompat ke modul terkait.</li>
+    <li><strong>Tombol notifikasi</strong> — dummy, sebagai placeholder untuk pengembangan ke depan.</li>
+    <li><strong>Avatar pengguna</strong> — selalu menampilkan user aktif (Sopian Hadianto, ID <span class="mono">p001</span>).</li>
+  </ul>
+
+  <h3>3. Area konten (tengah)</h3>
+  <p>
+    Tempat modul aktif di-render. Setiap modul memiliki struktur yang konsisten:
+    header dengan tombol aksi → filter/search lokal → daftar/tabel/grid → detail modal
+    (jika item diklik).
+  </p>
+
+  <h3>4. Footer (bawah)</h3>
+  <p>
+    Memuat tiga elemen wajib:
+  </p>
+  <ul>
+    <li>Kredit developer dan tautan ke kontak.</li>
+    <li><strong>Disclaimer amber</strong> bahwa aplikasi ini bukan produk resmi BPKH.</li>
+    <li>Versi aplikasi dan tahun copyright.</li>
+  </ul>
+
+  <div class="warn">
+    <strong>Catatan:</strong> Warna amber pada footer disclaimer adalah pilihan desain
+    yang disengaja — jangan diganti slate/abu-abu karena disclaimer harus visually prominent.
+  </div>
+
+  <h3>Konvensi warna</h3>
+  <div class="grid-3">
+    <div class="card"><span class="badge violet">violet</span><br/><span class="small muted">Primary, branding, link aktif</span></div>
+    <div class="card"><span class="badge emerald">emerald</span><br/><span class="small muted">Success, approved, published</span></div>
+    <div class="card"><span class="badge amber">amber</span><br/><span class="small muted">Warning, pending, in review</span></div>
+    <div class="card"><span class="badge rose">rose</span><br/><span class="small muted">Error, rejected, danger</span></div>
+    <div class="card"><span class="badge blue">blue</span><br/><span class="small muted">Info, answered, SOP type</span></div>
+    <div class="card"><span class="badge slate">slate</span><br/><span class="small muted">Neutral, draft, disabled</span></div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     BAGIAN II — MODUL UTAMA
+     ===================================================================== -->
+
+<!-- 5. Dashboard -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">📊</div>
+    <div>
+      <h3>5. Dashboard</h3>
+      <div class="sub">Ringkasan eksekutif KMLS — landing page setelah aplikasi dibuka.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Memberikan gambaran sekilas (one-glance overview) kondisi seluruh sistem: berapa
+    pegawai aktif, berapa pengajuan menunggu persetujuan, berapa aset pengetahuan yang
+    sudah diterbitkan, dan berapa pertanyaan terbuka di Ask the Expert.
+  </p>
+
+  <h3>Elemen utama</h3>
+  <div class="grid-2">
+    <div class="card kpi"><div class="num">12</div><div class="lbl">Total pegawai</div></div>
+    <div class="card kpi"><div class="num">2</div><div class="lbl">Pengajuan pending</div></div>
+    <div class="card kpi"><div class="num">8</div><div class="lbl">Knowledge asset</div></div>
+    <div class="card kpi"><div class="num">1</div><div class="lbl">Question terbuka</div></div>
+  </div>
+
+  <h3>Cara membaca</h3>
+  <ul>
+    <li><strong>KPI cards</strong> di bagian atas menampilkan angka real-time dari state aplikasi. Setiap kali Anda menambah/menghapus entitas di modul lain, angka di sini ikut berubah.</li>
+    <li><strong>Pengajuan terkini</strong> menampilkan lima pengajuan paling baru beserta status — klik salah satu untuk lompat ke modul Pengajuan Pelatihan.</li>
+    <li><strong>Top SME</strong> menampilkan SME berdasarkan jumlah kontribusi (kontribusi dihitung dari seed data).</li>
+    <li><strong>Aset trending</strong> menampilkan knowledge asset dengan view tertinggi 30 hari terakhir.</li>
+  </ul>
+
+  <h3>Aksi cepat</h3>
+  <table>
+    <tr><th style="width:30%">Tombol</th><th>Aksi</th></tr>
+    <tr><td>+ Pengajuan Baru</td><td>Buka modal pengajuan pelatihan di modul Pengajuan.</td></tr>
+    <tr><td>Lihat semua aset</td><td>Lompat ke modul Knowledge Asset.</td></tr>
+    <tr><td>Lihat SME</td><td>Lompat ke modul SME Development.</td></tr>
+  </table>
+
+  <div class="tip">
+    <strong>Tip pengguna baru:</strong> Mulailah dengan klik <em>"+ Pengajuan Baru"</em> di Dashboard untuk
+    mencoba alur paling lengkap (pengajuan → approval → harvest aset).
+  </div>
+</section>
+
+<!-- 6. Pengajuan Pelatihan -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">📤</div>
+    <div>
+      <h3>6. Pengajuan Pelatihan</h3>
+      <div class="sub">Workflow end-to-end dari draft sampai laporan dan harvesting aset.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Mengelola siklus hidup pengajuan pelatihan: pegawai mengajukan, atasan/HR me-review,
+    pelatihan dieksekusi, lalu hasil pelatihan di-<em>harvest</em> menjadi aset pengetahuan
+    sehingga tidak hilang sebagai dokumen pribadi.
+  </p>
+
+  <h3>Status pengajuan</h3>
+  <table>
+    <tr><th style="width:22%">Status</th><th>Arti</th><th style="width:25%">Aksi yang tersedia</th></tr>
+    <tr><td><span class="badge slate">Draft</span></td><td>Pengajuan sedang disusun, belum dikirim.</td><td>Edit, Submit</td></tr>
+    <tr><td><span class="badge amber">Pending</span></td><td>Menunggu persetujuan atasan.</td><td>Approve, Reject, Edit</td></tr>
+    <tr><td><span class="badge blue">Review HR</span></td><td>Sudah disetujui atasan, di-review HR.</td><td>Approve, Reject</td></tr>
+    <tr><td><span class="badge emerald">Disetujui</span></td><td>Pengajuan disetujui, pelatihan dapat dijalankan.</td><td>Mark Completed</td></tr>
+    <tr><td><span class="badge rose">Ditolak</span></td><td>Pengajuan ditolak (dengan alasan).</td><td>Lihat alasan</td></tr>
+    <tr><td><span class="badge violet">Selesai</span></td><td>Pelatihan sudah dijalankan dan dilaporkan.</td><td>🌾 Harvest Knowledge</td></tr>
+  </table>
+
+  <h3>Membuat pengajuan baru</h3>
+  <ol class="steps">
+    <li>Klik tombol <strong>"+ Pengajuan Baru"</strong> di pojok kanan atas modul.</li>
+    <li>Isi form: <em>judul, jenis, tanggal mulai &amp; selesai, biaya, penyelenggara, alasan</em>.</li>
+    <li>Pilih jenis pelatihan: Internal, Eksternal, Sertifikasi, Workshop, atau Konferensi.</li>
+    <li>Klik <strong>Simpan sebagai Draft</strong> atau langsung <strong>Submit</strong>.</li>
+    <li>Setelah submit, status berubah dari <em>draft</em> menjadi <em>pending</em>.</li>
+  </ol>
+
+  <h3>Filter &amp; pencarian</h3>
+  <p>
+    Bagian atas modul menyediakan filter berdasarkan status dan kotak pencarian berdasarkan
+    judul/penyelenggara. Anda juga dapat mengurutkan kolom tabel berdasarkan tanggal pengajuan.
+  </p>
+
+  <h3>🌾 Harvest Knowledge — fitur kunci</h3>
+  <p>
+    Saat pengajuan masuk status <em>Selesai</em>, akan muncul tombol <strong>"🌾 Harvest"</strong>.
+    Klik tombol ini untuk membuka modal Knowledge Harvest, yang akan membantu Anda mengubah
+    hasil pelatihan menjadi aset pengetahuan permanen.
+  </p>
+
+  <ol class="steps">
+    <li>Pilih tipe aset yang akan dibuat (SOP, Pedoman, Template, Video, Case, Lesson Learned).</li>
+    <li>Isi judul, tags, dan deskripsi singkat (sudah pre-fill dari data pengajuan).</li>
+    <li>Tetapkan owner dan tanggal review berikutnya.</li>
+    <li>Klik <strong>"Buat Aset"</strong> — aset baru otomatis muncul di modul Knowledge Asset dengan tanda <span class="badge violet">harvested</span>.</li>
+  </ol>
+
+  <div class="tip">
+    <strong>Mengapa harvesting penting?</strong> Banyak organisasi kehilangan pengetahuan ketika
+    pegawai pulang dari pelatihan: materi tersimpan di folder pribadi, tidak pernah dibagikan.
+    Fitur ini "memaksa" pengetahuan kembali ke sistem.
+  </div>
+</section>
+
+<!-- 7. Direktori Pegawai -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">👥</div>
+    <div>
+      <h3>7. Direktori Pegawai</h3>
+      <div class="sub">Daftar pegawai &amp; riwayat pengembangan.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Menjadi <em>single source of truth</em> untuk profil pegawai: identitas, posisi, performance,
+    kompetensi, riwayat pelatihan, kompetensi yang dimiliki, dan keanggotaan di talent pool.
+  </p>
+
+  <h3>Tampilan daftar</h3>
+  <p>
+    Modul ini menampilkan grid kartu pegawai, masing-masing menunjukkan:
+  </p>
+  <ul>
+    <li>Avatar (inisial nama)</li>
+    <li>Nama lengkap, NIP, jabatan, divisi</li>
+    <li>Skor performance (skala 1–5)</li>
+    <li>Skor kompetensi (skala 1–5)</li>
+    <li>Badge talent pool (jika pegawai terdaftar)</li>
+  </ul>
+
+  <h3>Detail pegawai</h3>
+  <p>Klik kartu pegawai untuk membuka modal detail yang berisi:</p>
+  <table>
+    <tr><th style="width:32%">Bagian</th><th>Isi</th></tr>
+    <tr><td>Profil</td><td>Identitas lengkap + tanggal bergabung.</td></tr>
+    <tr><td>Riwayat pelatihan</td><td>Semua pengajuan yang pernah dibuat oleh pegawai tersebut.</td></tr>
+    <tr><td>Kompetensi</td><td>Daftar kompetensi yang dimiliki dan level (0–4).</td></tr>
+    <tr><td>SME</td><td>Apakah pegawai terdaftar sebagai SME, di domain apa, level apa.</td></tr>
+    <tr><td>Learning paths</td><td>Path yang sedang/sudah diselesaikan.</td></tr>
+    <tr><td>Talent pool</td><td>Kategori talent (star, highpot, future, critical).</td></tr>
+  </table>
+
+  <h3>Pencarian &amp; filter</h3>
+  <p>
+    Gunakan kotak pencarian untuk menemukan pegawai berdasarkan nama, NIP, atau jabatan.
+    Filter berdasarkan divisi tersedia di sidebar filter.
+  </p>
+
+  <div class="note">
+    <strong>Catatan:</strong> Pada prototipe ini, user yang sedang login selalu Sopian Hadianto
+    (ID <span class="mono">p001</span>). Bookmark, enrollment, rating, dan komentar selalu dibuat
+    atas nama beliau. Untuk multi-user sebenarnya, lihat bagian <em>Catatan rilis</em>.
+  </div>
+</section>
+
+<!-- =====================================================================
+     BAGIAN III — KNOWLEDGE MANAGEMENT
+     ===================================================================== -->
+
+<!-- 8. SME Development -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">🏆</div>
+    <div>
+      <h3>8. SME Development</h3>
+      <div class="sub">Pilar 1 KM — identifikasi &amp; pengembangan Subject Matter Expert.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Mendaftar pegawai yang diakui sebagai ahli (SME) di domain tertentu, lengkap dengan level,
+    sertifikasi yang dimiliki, dan jumlah kontribusi mereka ke sistem (jawaban Q&amp;A, aset
+    pengetahuan, sesi sharing).
+  </p>
+
+  <h3>Level SME</h3>
+  <table>
+    <tr><th style="width:22%">Level</th><th>Dots</th><th>Deskripsi</th></tr>
+    <tr><td>Expert</td><td>●●●●●</td><td>Pakar utama di domain, rujukan terakhir, mentor lintas divisi.</td></tr>
+    <tr><td>Senior</td><td>●●●●○</td><td>Pengalaman matang, mampu menyelesaikan masalah kompleks mandiri.</td></tr>
+    <tr><td>Mid</td><td>●●●○○</td><td>Praktisi solid, dapat mengerjakan kasus standar dan membimbing junior.</td></tr>
+    <tr><td>Junior</td><td>●●○○○</td><td>SME pemula, masih membutuhkan bimbingan untuk kasus kompleks.</td></tr>
+  </table>
+
+  <h3>Tampilan</h3>
+  <p>
+    SME ditampilkan dalam grid kartu. Setiap kartu memuat: avatar, nama, jabatan,
+    domain expertise (multi-tag), level (dots), daftar sertifikasi, dan badge kontribusi.
+  </p>
+
+  <h3>Filter</h3>
+  <ul>
+    <li><strong>Filter level</strong> — tampilkan hanya expert, atau hanya junior.</li>
+    <li><strong>Filter domain</strong> — fokus ke satu KM domain (Audit, GRC, Investasi Syariah, dll).</li>
+    <li><strong>Pencarian</strong> — by nama atau sertifikasi.</li>
+  </ul>
+
+  <h3>Aksi yang tersedia</h3>
+  <table>
+    <tr><th style="width:30%">Aksi</th><th>Hasil</th></tr>
+    <tr><td>Klik kartu</td><td>Membuka detail SME (profil + kontribusi + Q&amp;A yang pernah dijawab).</td></tr>
+    <tr><td>Tanya SME</td><td>Tombol shortcut untuk membuat pertanyaan di Ask the Expert yang otomatis di-tag ke domain SME tersebut.</td></tr>
+    <tr><td>Lihat aset</td><td>Memfilter modul Knowledge Asset berdasarkan owner SME.</td></tr>
+  </table>
+
+  <div class="tip">
+    <strong>Tip integrasi:</strong> Status SME secara konseptual dapat dipakai sebagai
+    salah satu kriteria readiness suksesi di modul Succession Plan, atau sebagai
+    bahan penilaian Performance Appraisal di luar sistem.
+  </div>
+</section>
+
+<!-- 9. Knowledge Map -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">🗺️</div>
+    <div>
+      <h3>9. Knowledge Map</h3>
+      <div class="sub">Pilar 2 KM — pemetaan domain &amp; sebaran expertise.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Memvisualisasikan distribusi kompetensi dan SME per domain pengetahuan, sehingga
+    pimpinan dapat melihat area mana yang <em>over-supplied</em> (banyak ahli) dan area
+    mana yang <em>knowledge gap</em> (kurang ahli).
+  </p>
+
+  <h3>Domain pengetahuan</h3>
+  <p>KMLS mendefinisikan delapan domain default:</p>
+  <div class="grid-3">
+    <div class="card small">Audit Internal</div>
+    <div class="card small">GRC</div>
+    <div class="card small">Investasi Syariah</div>
+    <div class="card small">Pengelolaan Haji</div>
+    <div class="card small">IT &amp; Cybersecurity</div>
+    <div class="card small">Risk Management</div>
+    <div class="card small">Compliance</div>
+    <div class="card small">Sukuk</div>
+  </div>
+
+  <h3>Visualisasi</h3>
+  <p>Untuk setiap domain ditampilkan:</p>
+  <ul>
+    <li><strong>Heatmap warna</strong> — gradasi violet, semakin pekat semakin banyak SME.</li>
+    <li><strong>Daftar SME aktif</strong> di domain tersebut.</li>
+    <li><strong>Jumlah aset pengetahuan</strong> ber-tag domain itu.</li>
+    <li><strong>CoP terkait</strong> (jika ada).</li>
+    <li><strong>Gap indicator</strong> — segitiga amber bila jumlah SME di bawah ambang.</li>
+  </ul>
+
+  <h3>Cara membaca knowledge gap</h3>
+  <ol class="steps">
+    <li>Domain dengan 0–1 SME → <strong>high risk</strong>, butuh succession/training segera.</li>
+    <li>Domain dengan 2–3 SME → <strong>medium</strong>, masih aman tapi perlu pengembangan generasi berikutnya.</li>
+    <li>Domain dengan ≥ 4 SME → <strong>sehat</strong>, fokuskan pada retention dan cross-skilling.</li>
+  </ol>
+
+  <div class="note">
+    <strong>Bridging:</strong> Domain di Knowledge Map dipakai juga oleh modul Knowledge Asset
+    (lewat tags) dan Ask the Expert (lewat auto-routing pertanyaan). Tetap konsisten dalam
+    penamaan domain saat menambah data baru.
+  </div>
+</section>
+
+<!-- 10. Community of Practice -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">🤝</div>
+    <div>
+      <h3>10. Community of Practice (CoP)</h3>
+      <div class="sub">Pilar 3 KM — komunitas lintas-divisi yang berbagi minat &amp; praktik.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Memformalkan komunitas berbagi pengetahuan yang berjalan organik. Setiap CoP punya
+    seorang lead (biasanya SME senior), jumlah anggota, frekuensi diskusi, dan engagement
+    score.
+  </p>
+
+  <h3>CoP default yang tersedia</h3>
+  <table>
+    <tr><th style="width:30%">Nama CoP</th><th>Lead</th><th>Anggota</th></tr>
+    <tr><td>CoP Audit &amp; GRC</td><td>Rojikin</td><td>32</td></tr>
+    <tr><td>CoP Investasi Syariah</td><td>Rina Septiani</td><td>28</td></tr>
+    <tr><td>CoP IT &amp; Digital Innovation</td><td>Ahmad Fauzi</td><td>24</td></tr>
+    <tr><td>CoP Pelayanan Haji</td><td>Firmansyah N. Nazaroedin</td><td>19</td></tr>
+    <tr><td>CoP Kepatuhan &amp; APU-PPT</td><td>Andri Tanjung</td><td>16</td></tr>
+  </table>
+
+  <h3>Metrik engagement</h3>
+  <ul>
+    <li><strong>Anggota</strong> — jumlah pegawai yang tergabung.</li>
+    <li><strong>Diskusi per bulan</strong> — frekuensi thread/forum dalam satu bulan terakhir.</li>
+    <li><strong>Engagement (%)</strong> — formula sederhana = rata-rata partisipasi aktif anggota.</li>
+    <li><strong>Next event</strong> — tanggal event/diskusi terjadwal berikutnya (atau "belum dijadwalkan").</li>
+  </ul>
+
+  <h3>Cara membaca engagement</h3>
+  <ul>
+    <li><span class="badge emerald">70%+</span> — sehat, komunitas hidup, butuh fasilitator menjaga kontinuitas.</li>
+    <li><span class="badge amber">40–69%</span> — perlu revitalisasi: ganti topik, undang external speaker, dll.</li>
+    <li><span class="badge rose">&lt; 40%</span> — at-risk, pertimbangkan merger ke CoP lain atau dormansi.</li>
+  </ul>
+
+  <h3>Aksi</h3>
+  <table>
+    <tr><th style="width:30%">Aksi</th><th>Hasil</th></tr>
+    <tr><td>Klik CoP</td><td>Buka detail: deskripsi, anggota, jadwal event, link arsip diskusi.</td></tr>
+    <tr><td>+ CoP Baru</td><td>Buat komunitas baru (nama, lead, deskripsi, target anggota).</td></tr>
+    <tr><td>Jadwalkan event</td><td>Set <em>next event</em> untuk CoP — muncul juga di Dashboard.</td></tr>
+  </table>
+</section>
+
+<!-- 11. Knowledge Asset (3 halaman) -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">📚</div>
+    <div>
+      <h3>11. Knowledge Asset</h3>
+      <div class="sub">Pilar 4 KM — repositori aset pengetahuan dengan lifecycle, rating, dan knowledge graph.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Menjadi <em>library</em> pusat untuk semua aset pengetahuan organisasi: SOP, pedoman,
+    template, video sharing, case study, dan lesson learned. Setiap aset memiliki siklus
+    hidup (lifecycle) dan dapat di-bookmark, di-rating, dan di-comment.
+  </p>
+
+  <h3>Tipe aset</h3>
+  <table>
+    <tr><th style="width:22%">Tipe</th><th>Penggunaan</th></tr>
+    <tr><td><span class="badge blue">SOP</span></td><td>Standard Operating Procedure — alur baku.</td></tr>
+    <tr><td><span class="badge emerald">Pedoman</span></td><td>Pedoman teknis/metodologis yang lebih luas dari SOP.</td></tr>
+    <tr><td><span class="badge violet">Template</span></td><td>Format dokumen siap-pakai (kertas kerja, laporan).</td></tr>
+    <tr><td><span class="badge rose">Video</span></td><td>Rekaman knowledge session, training, atau demo.</td></tr>
+    <tr><td><span class="badge amber">Case Study</span></td><td>Studi kasus pengalaman organisasi.</td></tr>
+    <tr><td><span class="badge blue">Lesson Learned</span></td><td>Pelajaran kunci dari kegagalan/keberhasilan proyek.</td></tr>
+  </table>
+
+  <h3>Lifecycle aset</h3>
+  <ol class="steps">
+    <li><strong>Draft</strong> — sedang disusun oleh owner, belum dipublikasikan.</li>
+    <li><strong>In Review</strong> — sedang diverifikasi oleh SME/divisi terkait.</li>
+    <li><strong>Published</strong> — aktif, dapat dicari, di-bookmark, dan dijadikan rujukan.</li>
+    <li><strong>Archived</strong> — diarsipkan karena sudah tidak relevan / digantikan versi baru.</li>
+  </ol>
+
+  <h3>Metadata yang dipertahankan</h3>
+  <table>
+    <tr><th style="width:28%">Field</th><th>Penjelasan</th></tr>
+    <tr><td>judul</td><td>Nama aset, sebaiknya deskriptif (cantumkan versi).</td></tr>
+    <tr><td>type</td><td>SOP / pedoman / template / video / case / lesson.</td></tr>
+    <tr><td>tags</td><td>Multi-tag, dipakai untuk pencarian dan heuristik knowledge graph.</td></tr>
+    <tr><td>owner</td><td>Pegawai yang bertanggung jawab atas isi.</td></tr>
+    <tr><td>version</td><td>Nomor versi (1.0, 2.0, 3.1, dst).</td></tr>
+    <tr><td>reviewDate</td><td>Kapan aset wajib direview ulang.</td></tr>
+    <tr><td>description</td><td>Ringkasan isi aset.</td></tr>
+    <tr><td>ratingsUp / ratingsDown</td><td>Akumulasi rating dari pembaca.</td></tr>
+    <tr><td>views</td><td>Jumlah kali aset dibuka.</td></tr>
+    <tr><td>lastViewedAt</td><td>Tanggal terakhir dibuka (untuk deteksi dormant).</td></tr>
+    <tr><td>comments</td><td>Daftar komentar pembaca.</td></tr>
+    <tr><td>harvestedFrom</td><td>Jika aset ini lahir dari pengajuan pelatihan tertentu.</td></tr>
+  </table>
+</section>
+
+<section class="page">
+  <h3>Tampilan utama Knowledge Asset</h3>
+  <p>
+    Modul ini memiliki dua mode tampilan: <strong>Grid</strong> (kartu, default) dan <strong>List</strong>
+    (tabel padat). Toggle ada di pojok kanan atas.
+  </p>
+
+  <h4>Filter &amp; pencarian</h4>
+  <ul>
+    <li>Pencarian by judul/tag/owner.</li>
+    <li>Filter berdasarkan tipe (SOP, pedoman, dll).</li>
+    <li>Filter berdasarkan status (draft, review, published, archived).</li>
+    <li>Filter berdasarkan tag.</li>
+    <li>Toggle "Hanya bookmark saya".</li>
+    <li>Toggle "Hanya milik saya" (sebagai owner).</li>
+  </ul>
+
+  <h3>Asset Detail Modal</h3>
+  <p>
+    Klik salah satu kartu aset untuk membuka modal detail. Modal ini punya empat tab:
+  </p>
+  <table>
+    <tr><th style="width:22%">Tab</th><th>Isi</th></tr>
+    <tr><td>Overview</td><td>Deskripsi, version history, review schedule, owner info.</td></tr>
+    <tr><td>Comments</td><td>Diskusi antar pembaca, dapat menambahkan komentar baru.</td></tr>
+    <tr><td>Graph</td><td>Knowledge graph — relasi aset ini dengan SME, CoP, dan Learning Paths terkait.</td></tr>
+    <tr><td>Activity</td><td>Audit trail: kapan dibuat, kapan direvisi, siapa yang mengubah status.</td></tr>
+  </table>
+
+  <h3>Knowledge Graph (tab Graph)</h3>
+  <p>
+    Tab ini adalah salah satu fitur unggulan KMLS. Berdasarkan heuristik tag/division/domain,
+    modul menampilkan:
+  </p>
+  <ul>
+    <li><strong>Owner</strong> — pemilik aset, lengkap dengan divisi.</li>
+    <li><strong>SME terkait</strong> — yang ahli di domain aset.</li>
+    <li><strong>CoP terkait</strong> — komunitas yang aktif di topik tersebut.</li>
+    <li><strong>Learning Paths terkait</strong> — kurikulum yang sudah memasukkan aset ini.</li>
+  </ul>
+
+  <div class="note">
+    <strong>Catatan teknis:</strong> Heuristik ini bukan semantic search. Cocoknya berdasarkan
+    kemiripan tag (case-insensitive) dan overlap divisi. Pada implementasi enterprise, ini
+    sebaiknya diganti dengan embedding-based similarity.
+  </div>
+</section>
+
+<section class="page">
+  <h3>Rating &amp; Bookmark</h3>
+  <p>
+    Setiap aset published dapat di-rating (👍 / 👎) dan di-bookmark. Rating bersifat
+    sederhana — bukan untuk diskualifikasi aset, melainkan untuk membantu pengguna lain
+    menilai relevansi.
+  </p>
+
+  <ul>
+    <li><strong>Bookmark</strong> — disimpan di state <span class="mono">bookmarks</span>, dapat dilihat dengan toggle "Hanya bookmark saya".</li>
+    <li><strong>Rating</strong> — satu user satu suara (mock implementation, tidak ada deduplikasi keras).</li>
+    <li><strong>Komentar</strong> — append-only, tidak ada threading, tidak ada edit.</li>
+  </ul>
+
+  <h3>Membuat aset baru</h3>
+  <ol class="steps">
+    <li>Klik tombol <strong>"+ Aset Baru"</strong> di header modul.</li>
+    <li>Pilih tipe (SOP, pedoman, dll).</li>
+    <li>Isi judul, version, tags (pisahkan dengan koma), description.</li>
+    <li>Set owner dan tanggal review berikutnya.</li>
+    <li>Status awal default = <em>draft</em>.</li>
+    <li>Setelah konten siap, ubah status ke <em>review</em> → <em>published</em>.</li>
+  </ol>
+
+  <h3>Aset hasil Harvest</h3>
+  <p>
+    Aset yang dibuat lewat fitur Harvest di modul Pengajuan Pelatihan akan memiliki field
+    <span class="mono">harvestedFrom</span> yang berisi ID pengajuan asal. Modal detail akan
+    menampilkan badge khusus <span class="badge violet">🌾 Harvested</span> dan link kembali
+    ke pengajuan asal.
+  </p>
+
+  <div class="tip">
+    <strong>Best practice:</strong> Tetapkan review date 6–12 bulan dari publikasi. Saat tanggal
+    review tiba, aset akan muncul di KM Analytics → "Perlu Review" supaya tidak terlupakan.
+  </div>
+</section>
+
+<!-- 12. Learning Paths -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">🛤️</div>
+    <div>
+      <h3>12. Learning Paths</h3>
+      <div class="sub">Kurikulum terstruktur per role.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Membantu pegawai (terutama baru atau yang sedang berpindah role) mengikuti urutan
+    pembelajaran yang sudah dikurasi oleh SME senior. Setiap path adalah serangkaian
+    langkah — bisa berupa membaca aset, atau mengikuti training.
+  </p>
+
+  <h3>Path default</h3>
+  <table>
+    <tr><th style="width:35%">Path</th><th>Target Role</th><th>Pembuat</th></tr>
+    <tr><td>Onboarding Auditor BPKH</td><td>Auditor Muda</td><td>Rojikin</td></tr>
+    <tr><td>Compliance Fundamentals</td><td>Compliance Officer</td><td>Andri Tanjung</td></tr>
+    <tr><td>Investasi Syariah Mastery</td><td>Analis Investasi Senior</td><td>Rina Septiani</td></tr>
+  </table>
+
+  <h3>Struktur langkah (step)</h3>
+  <p>Setiap path terdiri dari beberapa langkah berurutan. Tipe langkah:</p>
+  <ul>
+    <li><strong>asset</strong> — membaca/menonton aset pengetahuan tertentu (ada link ke modul Knowledge Asset).</li>
+    <li><strong>training</strong> — mengikuti pelatihan tertentu (placeholder untuk integrasi ke modul Pengajuan).</li>
+  </ul>
+
+  <h3>Enrollment</h3>
+  <p>
+    Pegawai meng-enroll diri pada sebuah path → tercatat di <span class="mono">enrollments</span>
+    dengan <em>startedAt</em> dan <em>completedSteps</em> (array index langkah yang sudah selesai).
+    Progress bar menampilkan persentase penyelesaian.
+  </p>
+
+  <h3>Aksi pengguna</h3>
+  <table>
+    <tr><th style="width:30%">Aksi</th><th>Hasil</th></tr>
+    <tr><td>+ Path Baru</td><td>Buat path baru (judul, role, deskripsi, langkah-langkah).</td></tr>
+    <tr><td>Enroll</td><td>Tambahkan path ke daftar belajar Anda.</td></tr>
+    <tr><td>Tandai selesai</td><td>Toggle status step menjadi completed.</td></tr>
+    <tr><td>Lihat detail</td><td>Buka path → tab Overview, Steps, Enrolled Users.</td></tr>
+  </table>
+
+  <div class="tip">
+    <strong>Tip kurator:</strong> Path yang baik berisi 4–8 langkah, dengan campuran asset
+    (read/watch) dan training (action). Hindari path lebih dari 10 langkah — peserta cenderung drop-off.
+  </div>
+</section>
+
+<!-- 13. Skill Matrix -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">🎯</div>
+    <div>
+      <h3>13. Skill Matrix</h3>
+      <div class="sub">Pemetaan kompetensi &amp; gap analysis.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Menampilkan matriks kompetensi pegawai dalam bentuk heatmap, sekaligus membandingkan
+    level aktual dengan <em>role requirement</em> sehingga muncul daftar gap yang harus diisi.
+  </p>
+
+  <h3>Skala level kompetensi</h3>
+  <table>
+    <tr><th style="width:22%">Level</th><th>Label</th><th>Deskripsi</th></tr>
+    <tr><td>0</td><td>None</td><td>Belum memiliki kompetensi.</td></tr>
+    <tr><td>1</td><td>Foundational</td><td>Memahami konsep dasar.</td></tr>
+    <tr><td>2</td><td>Intermediate</td><td>Mampu mengaplikasikan dengan supervisi.</td></tr>
+    <tr><td>3</td><td>Advanced</td><td>Mampu mandiri menangani kasus kompleks.</td></tr>
+    <tr><td>4</td><td>Expert</td><td>Rujukan utama, mampu mentoring.</td></tr>
+  </table>
+
+  <h3>Tampilan matriks</h3>
+  <p>
+    Baris = pegawai, kolom = kompetensi. Sel diisi warna sesuai level (0 = abu-abu,
+    4 = amber). Hover/klik sel untuk melihat detail dan history pembelajaran terkait.
+  </p>
+
+  <h3>Gap analysis</h3>
+  <p>
+    Modul ini membandingkan level <em>pegawaiCompetencies</em> dengan <em>roleRequirements</em>
+    untuk jabatan pegawai. Hasilnya:
+  </p>
+  <ul>
+    <li>✅ <strong>Match</strong> — level pegawai ≥ requirement → hijau.</li>
+    <li>⚠️ <strong>Gap 1</strong> — kurang 1 level → kuning.</li>
+    <li>❌ <strong>Gap ≥ 2</strong> — kurang 2+ level → merah, prioritas pengembangan.</li>
+  </ul>
+
+  <h3>Filter</h3>
+  <ul>
+    <li>Filter per divisi (tampilkan satu divisi saja).</li>
+    <li>Filter per domain kompetensi.</li>
+    <li>Toggle "Hanya tampilkan gap" — untuk fokus pada area yang butuh pengembangan.</li>
+  </ul>
+
+  <div class="note">
+    <strong>Konteks integrasi:</strong> Hasil gap dapat dipakai sebagai input alami untuk
+    pengajuan pelatihan (modul Pengajuan), penentuan path belajar (Learning Paths),
+    atau penilaian kandidat suksesi (Succession Plan).
+  </div>
+</section>
+
+<!-- 14. Ask the Expert -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">❓</div>
+    <div>
+      <h3>14. Ask the Expert</h3>
+      <div class="sub">Q&amp;A dengan auto-routing ke SME.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Memberikan saluran resmi bagi pegawai untuk bertanya pada SME, sekaligus menangkap
+    jawaban berkualitas tinggi sebagai aset pengetahuan masa depan (lewat <em>Promote to Asset</em>).
+  </p>
+
+  <h3>Lifecycle pertanyaan</h3>
+  <ol class="steps">
+    <li><strong>Open</strong> — pertanyaan baru, belum ada jawaban.</li>
+    <li><strong>Answered</strong> — minimal satu SME sudah menjawab, masih menunggu konfirmasi penanya.</li>
+    <li><strong>Resolved</strong> — penanya menandai pertanyaan sudah teratasi.</li>
+  </ol>
+
+  <h3>Auto-routing</h3>
+  <p>
+    Ketika pertanyaan dibuat, sistem mencocokkan field <em>domain</em> pertanyaan dengan
+    domain expertise SME. SME yang cocok mendapat highlight di sidebar pertanyaan,
+    sebagai indikator <em>"Anda sebaiknya menjawab ini"</em>.
+  </p>
+
+  <h3>Membuat pertanyaan</h3>
+  <ol class="steps">
+    <li>Klik <strong>+ Tanya</strong> di header modul.</li>
+    <li>Isi judul (≤ 120 karakter, jelas dan spesifik).</li>
+    <li>Body — uraian masalah, konteks, sudah mencoba apa.</li>
+    <li>Pilih domain — menentukan auto-routing.</li>
+    <li>Submit. Status awal = <em>open</em>.</li>
+  </ol>
+
+  <h3>Menjawab pertanyaan</h3>
+  <p>
+    SME yang relevan dapat menulis jawaban di kotak respons. Jawaban dapat di-vote oleh
+    user lain (rating berupa angka). Jawaban dengan vote tertinggi muncul di posisi teratas.
+  </p>
+
+  <h3>Promote to Asset</h3>
+  <p>
+    Jika sebuah jawaban dinilai <em>evergreen</em> (berlaku jangka panjang), SME atau admin
+    dapat menekan tombol <strong>Promote to Asset</strong>. Jawaban tersebut akan dikonversi
+    menjadi aset pengetahuan baru (default tipe: Lesson Learned), dengan field
+    <span class="mono">promotedToAssetId</span> terisi sebagai link balik.
+  </p>
+
+  <div class="tip">
+    <strong>Best practice:</strong> Tidak semua jawaban perlu dipromosikan. Promosikan hanya yang
+    (a) menjawab pertanyaan umum, (b) memiliki konten substansial, (c) di-validasi minimal 2 SME.
+  </div>
+</section>
+
+<!-- 15. KM Analytics -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">📈</div>
+    <div>
+      <h3>15. KM Analytics</h3>
+      <div class="sub">Health score, dormant detection, contributor insights.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Memberikan <em>helicopter view</em> kesehatan ekosistem KM: apakah aset cukup di-publish,
+    apakah ada aset yang tidak terjamah, siapa kontributor paling aktif, kompetensi mana
+    yang paling jarang.
+  </p>
+
+  <h3>KPI utama</h3>
+  <div class="grid-3">
+    <div class="card kpi"><div class="num">85%</div><div class="lbl">KM Health Score</div></div>
+    <div class="card kpi"><div class="num">3</div><div class="lbl">Aset dormant (90+ hari)</div></div>
+    <div class="card kpi"><div class="num">2</div><div class="lbl">Perlu review bulan ini</div></div>
+    <div class="card kpi"><div class="num">5</div><div class="lbl">Top contributors</div></div>
+    <div class="card kpi"><div class="num">7</div><div class="lbl">Domain tertutup</div></div>
+    <div class="card kpi"><div class="num">1</div><div class="lbl">Domain knowledge gap</div></div>
+  </div>
+
+  <h3>Health Score</h3>
+  <p>
+    Indeks komposit (0–100%) yang merangkum: rasio aset published, frekuensi update, engagement
+    CoP, dan responsiveness Q&amp;A. Formula prototipe ini sederhana — dapat disesuaikan dengan
+    bobot yang dipilih organisasi.
+  </p>
+
+  <h3>Dormant assets</h3>
+  <p>
+    Aset yang <span class="mono">lastViewedAt</span>-nya &gt; 90 hari yang lalu. Dipampang
+    untuk diputuskan: arsipkan, refresh konten, atau abaikan.
+  </p>
+
+  <h3>Perlu review</h3>
+  <p>
+    Aset yang <span class="mono">reviewDate</span>-nya dalam 30 hari ke depan atau sudah lewat.
+    Dimaksudkan agar owner mendapat reminder untuk validasi ulang.
+  </p>
+
+  <h3>Top contributors</h3>
+  <p>
+    Ranking pegawai berdasarkan total kontribusi: aset yang dibuat + jawaban Q&amp;A + sesi sharing.
+    Berguna untuk program reward &amp; recognition.
+  </p>
+
+  <h3>Knowledge gap</h3>
+  <p>
+    Domain dengan SME &lt; 2 atau aset &lt; 3. Hasilnya bisa langsung diaksikan menjadi
+    target rekrutmen, training, atau pembentukan CoP baru.
+  </p>
+
+  <div class="warn">
+    <strong>Catatan:</strong> Semua angka di Analytics dihitung on-the-fly dari state aplikasi
+    saat Anda membuka modul. Tidak ada caching, tidak ada warehouse — perubahan langsung tercermin.
+  </div>
+</section>
+
+<!-- =====================================================================
+     BAGIAN IV — TALENT MANAGEMENT
+     ===================================================================== -->
+
+<!-- 16. TMS Overview -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">🎯</div>
+    <div>
+      <h3>16. TMS Overview</h3>
+      <div class="sub">Acquisition → Development → Alignment.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Halaman pengantar untuk seksi Talent Management. Menjelaskan tiga stage utama yang
+    dipakai KMLS dan modul mana yang melayani stage tersebut.
+  </p>
+
+  <h3>Tiga stage TMS</h3>
+  <table>
+    <tr>
+      <th style="width:25%">Stage</th>
+      <th style="width:35%">Fokus</th>
+      <th>Modul KMLS</th>
+    </tr>
+    <tr>
+      <td><span class="badge violet">Acquisition</span></td>
+      <td>Identifikasi siapa pegawai potensial, posisikan mereka di peta 9-Box.</td>
+      <td>9-Box Mapping</td>
+    </tr>
+    <tr>
+      <td><span class="badge blue">Development</span></td>
+      <td>Kembangkan kapasitas talent (star, highpot, future, critical).</td>
+      <td>Talent Pool, Learning Paths, Skill Matrix</td>
+    </tr>
+    <tr>
+      <td><span class="badge emerald">Alignment</span></td>
+      <td>Selaraskan talent dengan kebutuhan posisi strategis.</td>
+      <td>Succession Plan, Workflow Promosi</td>
+    </tr>
+  </table>
+
+  <h3>KPI ringkasan</h3>
+  <div class="grid-3">
+    <div class="card kpi"><div class="num">6</div><div class="lbl">Total talent pool</div></div>
+    <div class="card kpi"><div class="num">2</div><div class="lbl">Stars</div></div>
+    <div class="card kpi"><div class="num">2</div><div class="lbl">High potentials</div></div>
+    <div class="card kpi"><div class="num">1</div><div class="lbl">Future stars</div></div>
+    <div class="card kpi"><div class="num">1</div><div class="lbl">Critical backups</div></div>
+    <div class="card kpi"><div class="num">5</div><div class="lbl">Suksesi terbuka</div></div>
+  </div>
+
+  <h3>Alur kerja sehari-hari</h3>
+  <ol class="steps">
+    <li>Setiap kuartal, review 9-Box Mapping untuk lihat pergerakan pegawai antar kuadran.</li>
+    <li>Identifikasi pegawai yang naik ke kuadran top-right → masukkan ke Talent Pool.</li>
+    <li>Untuk pegawai di Talent Pool, susun Learning Path khusus + monitor Skill Matrix.</li>
+    <li>Sesuaikan Succession Plan dengan komposisi talent yang ada.</li>
+    <li>Saat ada posisi terbuka → eksekusi via Workflow Promosi.</li>
+  </ol>
+</section>
+
+<!-- 17. 9-Box Mapping -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">▣</div>
+    <div>
+      <h3>17. 9-Box Talent Mapping</h3>
+      <div class="sub">Acquisition stage — peta performance vs potensi.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Memvisualisasikan setiap pegawai dalam matriks 3×3 berdasarkan dua dimensi:
+    <strong>Performance</strong> (sumbu X) dan <strong>Kompetensi/Potensi</strong> (sumbu Y).
+  </p>
+
+  <h3>Sembilan kuadran</h3>
+  <table>
+    <tr><th style="width:25%">Kuadran</th><th style="width:25%">Posisi</th><th>Interpretasi &amp; aksi</th></tr>
+    <tr><td>Stars</td><td>Top-right (High-High)</td><td>Calon pemimpin masa depan. Berikan stretch assignment, mentoring senior.</td></tr>
+    <tr><td>High Potentials</td><td>Top-mid</td><td>Potensi tinggi, performance masih bisa ditingkatkan. Coaching intensif.</td></tr>
+    <tr><td>Future Stars</td><td>Mid-top</td><td>Performance bagus, potensi tinggi. Pertahankan.</td></tr>
+    <tr><td>Core Performers</td><td>Tengah</td><td>Tulang punggung organisasi. Jaga retention.</td></tr>
+    <tr><td>Effective</td><td>Mid-Bot</td><td>Solid di posisi sekarang, bukan kandidat promosi cepat.</td></tr>
+    <tr><td>Up &amp; Coming</td><td>Bot-Top</td><td>Pegawai baru dengan potensi — beri waktu untuk berkembang.</td></tr>
+    <tr><td>Inconsistent</td><td>Bot-Mid</td><td>Perlu klarifikasi ekspektasi dan dukungan tambahan.</td></tr>
+    <tr><td>Underperformer</td><td>Bot-Left</td><td>Performance Improvement Plan (PIP).</td></tr>
+    <tr><td>Misfit</td><td>Top-Left</td><td>Kompetensi rendah meski performance ok — biasanya tidak match dengan role.</td></tr>
+  </table>
+
+  <h3>Cara membaca tampilan</h3>
+  <ul>
+    <li>Setiap pegawai diwakili oleh avatar di salah satu kotak.</li>
+    <li>Posisi ditentukan otomatis dari field <span class="mono">performance</span> dan <span class="mono">kompetensi</span> di profil pegawai.</li>
+    <li>Hover/klik avatar untuk melihat ringkasan profil.</li>
+    <li>Toggle "Tampilkan nama" untuk melihat nama lengkap di tiap kotak.</li>
+  </ul>
+
+  <div class="tip">
+    <strong>Tip kalibrasi:</strong> Lakukan 9-Box review bersama tim manajemen, bukan sendiri.
+    Hasilnya lebih kredibel jika ada konsensus lintas atasan langsung.
+  </div>
+</section>
+
+<!-- 18. Talent Pool -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">⭐</div>
+    <div>
+      <h3>18. Talent Pool</h3>
+      <div class="sub">Development &amp; alignment stage — kumpulan pegawai yang dibina khusus.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Mengelola daftar pegawai yang masuk dalam program pengembangan khusus. Setiap entry
+    memiliki kategori dan notes pendukung.
+  </p>
+
+  <h3>Empat kategori talent</h3>
+  <table>
+    <tr><th style="width:22%">Kategori</th><th>Definisi</th><th style="width:30%">Program rekomendasi</th></tr>
+    <tr><td><span class="badge violet">Star</span></td><td>Performance &amp; potensi sangat tinggi, kandidat C-Level.</td><td>Executive coaching, exposure dewan.</td></tr>
+    <tr><td><span class="badge blue">High Potential</span></td><td>Potensi naik 2 level dalam 3–5 tahun.</td><td>Cross-functional rotation.</td></tr>
+    <tr><td><span class="badge emerald">Future Star</span></td><td>Baru bergabung, sinyal awal positif.</td><td>Mentorship, accelerated learning path.</td></tr>
+    <tr><td><span class="badge amber">Critical Backup</span></td><td>Pegawai dengan keahlian niche yang sulit digantikan.</td><td>Knowledge transfer, dokumentasi tacit knowledge.</td></tr>
+  </table>
+
+  <h3>Aksi yang tersedia</h3>
+  <table>
+    <tr><th style="width:30%">Aksi</th><th>Hasil</th></tr>
+    <tr><td>+ Tambah Talent</td><td>Pilih pegawai, set kategori, isi catatan justifikasi.</td></tr>
+    <tr><td>Pindah kategori</td><td>Update kategori (misal future → highpot setelah 1 tahun).</td></tr>
+    <tr><td>Hapus dari pool</td><td>Keluarkan pegawai dari talent pool.</td></tr>
+    <tr><td>Lihat di Succession</td><td>Cek apakah talent ini sudah masuk daftar kandidat suksesi.</td></tr>
+  </table>
+
+  <div class="note">
+    <strong>Etika data:</strong> Talent pool sebaiknya bersifat <em>need-to-know</em>. Pada
+    implementasi produksi, akses ke modul ini harus dikunci permission khusus (HR head, CEO).
+  </div>
+</section>
+
+<!-- 19. Succession Plan -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">🔁</div>
+    <div>
+      <h3>19. Succession Plan</h3>
+      <div class="sub">Alignment stage — rencana suksesi posisi strategis.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Memastikan setiap posisi kunci memiliki kandidat pengganti yang sudah dipersiapkan,
+    sehingga kontinuitas organisasi terjaga saat terjadi pergantian.
+  </p>
+
+  <h3>Struktur entry suksesi</h3>
+  <table>
+    <tr><th style="width:28%">Field</th><th>Penjelasan</th></tr>
+    <tr><td>posisi</td><td>Nama jabatan strategis yang sedang dipetakan suksesinya.</td></tr>
+    <tr><td>incumbent</td><td>Pejabat saat ini (jika ada). Bisa kosong jika posisi vacant.</td></tr>
+    <tr><td>kandidat</td><td>Daftar pegawai yang masuk kandidat (urutan = ranking).</td></tr>
+    <tr><td>readiness</td><td>Waktu yang dibutuhkan kandidat untuk siap (1y / 2y / 3y).</td></tr>
+  </table>
+
+  <h3>Indikator readiness</h3>
+  <ul>
+    <li><span class="badge emerald">1y</span> — kandidat siap dalam 1 tahun, sudah memiliki sebagian besar kompetensi.</li>
+    <li><span class="badge amber">2y</span> — perlu pengembangan moderat (cross-rotation, sertifikasi).</li>
+    <li><span class="badge rose">3y</span> — kompetensi masih cukup jauh dari requirement, butuh program intensif.</li>
+  </ul>
+
+  <h3>Aksi</h3>
+  <table>
+    <tr><th style="width:30%">Aksi</th><th>Hasil</th></tr>
+    <tr><td>+ Posisi Suksesi</td><td>Tambah posisi baru yang perlu dipetakan.</td></tr>
+    <tr><td>+ Kandidat</td><td>Pilih pegawai dari direktori, tambahkan sebagai kandidat.</td></tr>
+    <tr><td>Geser urutan</td><td>Drag &amp; drop untuk mengubah ranking kandidat.</td></tr>
+    <tr><td>Set readiness</td><td>Update estimasi waktu siap untuk masing-masing kandidat.</td></tr>
+    <tr><td>Lihat profil</td><td>Klik kandidat → buka detail pegawai (kompetensi, riwayat).</td></tr>
+  </table>
+
+  <div class="warn">
+    <strong>Hindari "posisi tanpa kandidat".</strong> Setiap posisi strategis harus punya
+    minimal 2 kandidat. Posisi dengan daftar kandidat kosong (lihat <em>Kepala Divisi SDM</em>
+    di seed data) adalah <strong>red flag</strong>.
+  </div>
+</section>
+
+<!-- 20. Workflow Promosi -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">⬆️</div>
+    <div>
+      <h3>20. Workflow Promosi</h3>
+      <div class="sub">Alignment stage — eksekusi pengisian posisi terbuka.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Modul ini mengelola proses promosi: dari posisi terbuka, seleksi kandidat,
+    sampai keputusan pengangkatan resmi.
+  </p>
+
+  <h3>Tahapan</h3>
+  <ol class="steps">
+    <li><strong>Posisi terbuka</strong> — input posisi yang perlu diisi (sumber: succession plan, atau ad-hoc).</li>
+    <li><strong>Shortlist kandidat</strong> — pilih 2–5 kandidat dari talent pool / succession.</li>
+    <li><strong>Asesmen</strong> — interview, technical assessment, leadership review (di luar sistem).</li>
+    <li><strong>Keputusan</strong> — pilih kandidat terpilih, dokumentasikan alasan.</li>
+    <li><strong>Promosi</strong> — update profil pegawai terpilih (jabatan baru, divisi baru jika berubah).</li>
+  </ol>
+
+  <h3>Integrasi dengan modul lain</h3>
+  <ul>
+    <li><strong>Succession Plan</strong> — Workflow Promosi mengambil kandidat dari sini.</li>
+    <li><strong>Skill Matrix</strong> — bandingkan kompetensi kandidat dengan role requirement.</li>
+    <li><strong>Direktori Pegawai</strong> — profil pegawai terpilih akan terupdate setelah promosi.</li>
+  </ul>
+
+  <h3>Aksi</h3>
+  <table>
+    <tr><th style="width:30%">Aksi</th><th>Hasil</th></tr>
+    <tr><td>+ Promosi Baru</td><td>Mulai proses untuk posisi tertentu.</td></tr>
+    <tr><td>Tambah kandidat</td><td>Pilih dari talent pool atau direktori.</td></tr>
+    <tr><td>Catat asesmen</td><td>Simpan hasil interview/assessment per kandidat.</td></tr>
+    <tr><td>Putuskan</td><td>Pilih final candidate + alasan tertulis.</td></tr>
+    <tr><td>Eksekusi</td><td>Update jabatan pegawai. Posisi lama (jika menjadi vacant) otomatis muncul di Succession Plan.</td></tr>
+  </table>
+
+  <div class="tip">
+    <strong>Dokumentasi alasan keputusan</strong> sangat penting — bukan saja untuk akuntabilitas,
+    tetapi juga untuk kalibrasi proses promosi berikutnya.
+  </div>
+</section>
+
+<!-- =====================================================================
+     BAGIAN V — ADMIN & LAINNYA
+     ===================================================================== -->
+
+<!-- 21. Pengaturan -->
+<section class="page">
+  <div class="module-banner">
+    <div class="icon">⚙️</div>
+    <div>
+      <h3>21. Pengaturan</h3>
+      <div class="sub">Konfigurasi aplikasi, reset data, export/import.</div>
+    </div>
+  </div>
+
+  <h3>Tujuan</h3>
+  <p>
+    Memberikan kontrol administratif atas data lokal: melihat metadata aplikasi,
+    mereset data, mengekspor data sebagai backup, atau mengimpor data hasil ekspor.
+  </p>
+
+  <h3>Bagian-bagian</h3>
+
+  <h4>Info Aplikasi</h4>
+  <table>
+    <tr><th style="width:32%">Field</th><th>Nilai</th></tr>
+    <tr><td>Versi</td><td><span class="mono">1.1.0</span></td></tr>
+    <tr><td>Storage key</td><td><span class="mono">kmls:appdata:v2</span></td></tr>
+    <tr><td>Persistence</td><td>localStorage (browser ini)</td></tr>
+    <tr><td>Active user</td><td>Sopian Hadianto (<span class="mono">p001</span>) — single user mode</td></tr>
+  </table>
+
+  <h4>Reset Data</h4>
+  <p>
+    Tombol <strong>"Reset ke seed data"</strong> akan menghapus seluruh perubahan lokal dan
+    mengembalikan data ke kondisi awal. Tindakan ini permanen di browser tersebut.
+  </p>
+
+  <h4>Export</h4>
+  <p>
+    Tombol <strong>"Export JSON"</strong> mengunduh seluruh state aplikasi sebagai file
+    <span class="mono">kmls-backup-YYYYMMDD.json</span>. File ini dapat disimpan, dikirim,
+    atau diimpor kembali.
+  </p>
+
+  <h4>Import</h4>
+  <p>
+    Tombol <strong>"Import JSON"</strong> menerima file backup hasil ekspor. Setelah import,
+    data lama akan tergantikan. Validasi minimal: cek struktur dasar, cek versi.
+  </p>
+
+  <div class="warn">
+    <strong>Kompatibilitas versi:</strong> Backup dari aplikasi versi 1.0.x mungkin tidak
+    kompatibel dengan versi 1.1.x karena penambahan field baru (rating, comments, dst).
+    Selalu cek release notes saat upgrade.
+  </div>
+
+  <h3>Pengaturan UI</h3>
+  <ul>
+    <li><strong>Sidebar collapse</strong> — lipat sidebar untuk layar kecil.</li>
+    <li><strong>Theme</strong> — saat ini hanya light theme; dark mode pada roadmap.</li>
+    <li><strong>Bahasa</strong> — saat ini hanya Bahasa Indonesia.</li>
+  </ul>
+</section>
+
+<!-- 22. Workflow end-to-end -->
+<section class="page">
+  <h2>22. Workflow End-to-End</h2>
+
+  <p>
+    Bagian ini menyajikan tiga skenario alur kerja yang menjadi <em>contoh utama</em>
+    bagaimana modul-modul KMLS berkolaborasi. Setiap workflow melibatkan minimal tiga modul.
+  </p>
+
+  <h3>Workflow 1 — Pengajuan Pelatihan → Harvest Knowledge</h3>
+  <ol class="steps">
+    <li>Pegawai membuat pengajuan pelatihan di modul <strong>Pengajuan</strong>. Status = pending.</li>
+    <li>Atasan me-review dan menyetujui. Status = approved.</li>
+    <li>Pegawai mengikuti pelatihan (di luar sistem).</li>
+    <li>Setelah selesai, status diubah ke completed.</li>
+    <li>Tombol <strong>🌾 Harvest</strong> muncul. Klik untuk membuka modal harvesting.</li>
+    <li>Pilih tipe aset → isi metadata → simpan.</li>
+    <li>Aset muncul di modul <strong>Knowledge Asset</strong> dengan badge <span class="badge violet">harvested</span>.</li>
+    <li>Aset di-publish, di-bookmark, dan di-rating oleh pegawai lain.</li>
+    <li>Owner mendapat tugas review tahunan saat <span class="mono">reviewDate</span> tiba (muncul di <strong>KM Analytics</strong>).</li>
+  </ol>
+
+  <h3>Workflow 2 — Q&amp;A → Aset → Learning Path</h3>
+  <ol class="steps">
+    <li>Pegawai junior bertanya di <strong>Ask the Expert</strong> tentang sampling audit syariah.</li>
+    <li>Sistem auto-route ke SME audit. SME menulis jawaban.</li>
+    <li>Penanya menandai pertanyaan resolved.</li>
+    <li>Admin/SME klik <strong>Promote to Asset</strong> — jawaban dikonversi ke Lesson Learned.</li>
+    <li>Curator di <strong>Learning Paths</strong> menambahkan aset baru ini sebagai step di path "Onboarding Auditor".</li>
+    <li>Auditor baru yang enroll path tersebut otomatis melewati pengetahuan ini.</li>
+  </ol>
+
+  <h3>Workflow 3 — Skill gap → Talent Pool → Succession</h3>
+  <ol class="steps">
+    <li>Di <strong>Skill Matrix</strong>, terlihat divisi Investasi punya gap besar di kompetensi Sukuk.</li>
+    <li>HR mengidentifikasi pegawai potensial untuk pengembangan → masukkan ke <strong>Talent Pool</strong> kategori "Future Star".</li>
+    <li>Buat <strong>Learning Path</strong> "Investasi Syariah Mastery" untuk pegawai tersebut.</li>
+    <li>Setelah 1 tahun, pegawai naik level kompetensi → di <strong>9-Box</strong> bergerak ke kuadran high-pot.</li>
+    <li>Saat posisi Kepala Divisi Investasi terbuka, pegawai ini muncul sebagai kandidat di <strong>Succession Plan</strong>.</li>
+    <li>Eksekusi promosi via <strong>Workflow Promosi</strong>.</li>
+  </ol>
+
+  <div class="tip">
+    <strong>Kunci adopsi:</strong> Workflow akan berjalan jika setiap modul punya
+    <em>owner</em> yang aktif. Tanpa owner, modul akan menjadi data terisolasi yang tidak
+    saling berbicara.
+  </div>
+</section>
+
+<!-- 23. FAQ -->
+<section class="page">
+  <h2>23. FAQ</h2>
+
+  <h3>Tentang aplikasi</h3>
+
+  <h4>Q: Apakah KMLS aman dipakai untuk data sungguhan organisasi?</h4>
+  <p>
+    <strong>Tidak.</strong> KMLS adalah prototipe, tidak memiliki autentikasi, tidak punya
+    backend, dan menyimpan semua data di <span class="mono">localStorage</span> browser. Data
+    bisa hilang kapan saja jika user clear cache atau menggunakan browser lain.
+  </p>
+
+  <h4>Q: Data saya bocor ke mana?</h4>
+  <p>
+    Tidak ke mana-mana. Semua data tinggal di browser Anda. Tidak ada server yang menerima
+    data, tidak ada analytics tracker, tidak ada cookie pihak ketiga.
+  </p>
+
+  <h4>Q: Apakah ini produk resmi BPKH?</h4>
+  <p>
+    Bukan. Lihat halaman <em>Disclaimer Penting</em> di awal manual ini. KMLS adalah karya
+    pribadi MS Hadianto untuk eksplorasi konsep.
+  </p>
+
+  <h3>Penggunaan</h3>
+
+  <h4>Q: Bagaimana cara berbagi data dengan rekan?</h4>
+  <p>
+    Gunakan menu <strong>Pengaturan → Export JSON</strong>. Kirim file hasil ke rekan,
+    dan rekan melakukan <strong>Import JSON</strong> di browser-nya.
+  </p>
+
+  <h4>Q: Bisakah saya pakai di mobile?</h4>
+  <p>
+    Bisa, layout responsif. Tapi pengalaman terbaik di tablet atau desktop karena banyak
+    tabel dan grid dua-kolom.
+  </p>
+
+  <h4>Q: Kenapa user saya selalu Sopian Hadianto?</h4>
+  <p>
+    Prototipe ini single-user mode — konstanta <span class="mono">CURRENT_USER_ID</span>
+    di kode hard-coded ke <span class="mono">p001</span>. Multi-user real time membutuhkan
+    backend &amp; autentikasi.
+  </p>
+
+  <h4>Q: Bagaimana cara menambahkan kompetensi baru?</h4>
+  <p>
+    Saat ini editor kompetensi belum disediakan di UI. Tambahkan langsung di seed data
+    (<span class="mono">competencies</span> array di <span class="mono">App.jsx</span>),
+    lalu reset data agar entri baru muncul.
+  </p>
+
+  <h3>Teknis</h3>
+
+  <h4>Q: Browser yang didukung?</h4>
+  <p>
+    Chrome, Edge, Firefox, Safari — semua versi yang dirilis dalam 2 tahun terakhir.
+    Internet Explorer tidak didukung.
+  </p>
+
+  <h4>Q: Bagaimana cara melaporkan bug?</h4>
+  <p>
+    Buka issue di repositori GitHub <span class="mono">mshadianto/klms</span>, atau email
+    langsung ke penulis (lihat halaman Disclaimer).
+  </p>
+</section>
+
+<!-- 24. Troubleshooting -->
+<section class="page">
+  <h2>24. Troubleshooting</h2>
+
+  <h3>Aplikasi tidak menyimpan perubahan</h3>
+  <p><strong>Gejala:</strong> setelah refresh, data kembali ke seed.</p>
+  <ul>
+    <li>Cek apakah browser dalam mode <em>Incognito/Private</em> — di mode ini <span class="mono">localStorage</span> dihapus saat tab ditutup.</li>
+    <li>Cek apakah ada extension yang memblokir storage (privacy extension).</li>
+    <li>Buka DevTools (F12) → tab Application → Local Storage → cek apakah key <span class="mono">kmls:appdata:v2</span> ada.</li>
+    <li>Cek quota — jika storage penuh, write akan gagal. Lihat console untuk error.</li>
+  </ul>
+
+  <h3>Layar putih / blank</h3>
+  <ul>
+    <li>Buka DevTools console (F12). Cari error JavaScript.</li>
+    <li>Jika error berkaitan dengan field yang tidak ada (misal <span class="mono">undefined.map</span>), kemungkinan ada data lama dari versi sebelumnya. Hapus key localStorage dan reload.</li>
+    <li>Cek koneksi internet untuk muat asset Tailwind/lucide pertama kali (setelah itu di-cache).</li>
+  </ul>
+
+  <h3>Build produksi gagal</h3>
+  <ul>
+    <li>Hapus folder <span class="mono">node_modules</span> dan <span class="mono">package-lock.json</span>, lalu jalankan <code>npm install</code> ulang.</li>
+    <li>Pastikan Node ≥ v18.</li>
+    <li>Jika ada error tentang case-sensitivity (Linux vs Windows), cek apakah ada file path dengan kapitalisasi tidak konsisten.</li>
+  </ul>
+
+  <h3>Deploy ke GitHub Pages tidak update</h3>
+  <ul>
+    <li>Cek tab Actions di GitHub — workflow deploy sudah jalan?</li>
+    <li>Workflow hanya berjalan saat push ke branch <span class="mono">main</span>.</li>
+    <li>Pages source harus diset ke "GitHub Actions" (bukan branch).</li>
+    <li>Tunggu 2–5 menit setelah workflow selesai untuk propagasi CDN.</li>
+  </ul>
+
+  <h3>Custom domain (klms.mshadianto.id) tidak HTTPS</h3>
+  <ul>
+    <li>Cek file <span class="mono">public/CNAME</span> berisi <span class="mono">klms.mshadianto.id</span>.</li>
+    <li>Di Cloudflare DNS, record harus <strong>DNS-only (grey cloud)</strong>, BUKAN proxy (orange cloud). Orange cloud memblokir validasi Let's Encrypt.</li>
+    <li>Tunggu hingga GitHub Pages selesai menerbitkan sertifikat (kadang sampai 24 jam).</li>
+  </ul>
+
+  <h3>Performance lambat</h3>
+  <ul>
+    <li>Hard refresh: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> (Windows) atau <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> (Mac).</li>
+    <li>Tutup tab lain yang berat.</li>
+    <li>Jika data prototipe diperbesar (misal 10.000 entry), pertimbangkan migrasi ke backend nyata.</li>
+  </ul>
+
+  <h3>Pencarian global tidak menemukan apa-apa</h3>
+  <ul>
+    <li>Pencarian mencocokkan substring sederhana (case-insensitive). Pastikan kata kunci ada di field yang dicari.</li>
+    <li>Bidang yang dicari: nama pegawai, judul aset, judul pengajuan, judul pertanyaan, nama SME.</li>
+    <li>Coba kata kunci yang lebih pendek.</li>
+  </ul>
+</section>
+
+<!-- 25. Glosarium -->
+<section class="page">
+  <h2>25. Glosarium</h2>
+
+  <table>
+    <tr><th style="width:25%">Istilah</th><th>Definisi</th></tr>
+    <tr><td>Aset pengetahuan</td><td>Dokumen, video, atau materi lain yang berisi pengetahuan eksplisit organisasi (SOP, pedoman, template, lesson learned).</td></tr>
+    <tr><td>CoP</td><td>Community of Practice — komunitas lintas-divisi yang berbagi minat dan praktik di domain tertentu.</td></tr>
+    <tr><td>Critical Backup</td><td>Pegawai dengan kompetensi niche yang sulit diganti; perlu transfer knowledge intensif.</td></tr>
+    <tr><td>Divisi</td><td>Unit organisasi setingkat departemen.</td></tr>
+    <tr><td>Engagement (CoP)</td><td>Indeks partisipasi anggota CoP, dalam %.</td></tr>
+    <tr><td>Future Star</td><td>Pegawai baru/junior dengan indikasi potensi tinggi.</td></tr>
+    <tr><td>Gap (kompetensi)</td><td>Selisih antara level aktual pegawai dengan level yang dibutuhkan role-nya.</td></tr>
+    <tr><td>Harvest Knowledge</td><td>Proses mengubah hasil pelatihan menjadi aset pengetahuan organisasi.</td></tr>
+    <tr><td>High Potential (HiPo)</td><td>Pegawai dengan potensi pengembangan tinggi.</td></tr>
+    <tr><td>Incumbent</td><td>Pejabat yang saat ini memegang posisi.</td></tr>
+    <tr><td>Jabatan</td><td>Posisi formal pegawai.</td></tr>
+    <tr><td>Knowledge Graph</td><td>Visualisasi relasi antar entitas pengetahuan (aset, SME, CoP, path).</td></tr>
+    <tr><td>Knowledge Map</td><td>Pemetaan distribusi kompetensi/SME per domain pengetahuan.</td></tr>
+    <tr><td>KMLS</td><td>Knowledge Management &amp; Learning System — nama aplikasi ini.</td></tr>
+    <tr><td>Learning Path</td><td>Kurikulum berurutan untuk mempersiapkan pegawai pada role tertentu.</td></tr>
+    <tr><td>Lesson Learned</td><td>Pelajaran kunci dari pengalaman (gagal/sukses) yang didokumentasikan.</td></tr>
+    <tr><td>Pegawai</td><td>Karyawan.</td></tr>
+    <tr><td>Pelatihan</td><td>Training, kursus, sertifikasi, atau workshop.</td></tr>
+    <tr><td>Pengajuan</td><td>Permintaan formal untuk mengikuti pelatihan.</td></tr>
+    <tr><td>Promote to Asset</td><td>Aksi mengonversi jawaban Q&amp;A bagus menjadi aset pengetahuan formal.</td></tr>
+    <tr><td>Readiness</td><td>Estimasi waktu kandidat siap menempati posisi suksesi (1y/2y/3y).</td></tr>
+    <tr><td>Role requirement</td><td>Daftar kompetensi + level yang dibutuhkan suatu jabatan.</td></tr>
+    <tr><td>Seed data</td><td>Data awal yang muncul saat aplikasi dijalankan pertama kali.</td></tr>
+    <tr><td>SME</td><td>Subject Matter Expert — ahli di domain tertentu.</td></tr>
+    <tr><td>Star</td><td>Pegawai performance &amp; kompetensi sangat tinggi, kandidat eksekutif.</td></tr>
+    <tr><td>Suksesi</td><td>Rencana pengisian posisi strategis saat terjadi pergantian.</td></tr>
+    <tr><td>TMS</td><td>Talent Management System.</td></tr>
+    <tr><td>Underperformer</td><td>Pegawai dengan performance di bawah standar.</td></tr>
+  </table>
+</section>
+
+<!-- 26. Catatan Rilis -->
+<section class="page">
+  <h2>26. Catatan Rilis</h2>
+
+  <h3>v1.1.0 — Mei 2026 (versi saat ini)</h3>
+  <p><strong>Fokus:</strong> Modernisasi KM — lifecycle aset, rating, learning paths, skill matrix, Q&amp;A, analytics, harvest.</p>
+  <ul>
+    <li>Asset lifecycle: draft → review → published → archived.</li>
+    <li>Rating &amp; komentar pada aset.</li>
+    <li>Knowledge graph heuristik (Asset detail modal).</li>
+    <li>Modul baru: Learning Paths, Skill Matrix, Ask the Expert, KM Analytics.</li>
+    <li>Knowledge Harvest dari Pengajuan Pelatihan yang completed.</li>
+    <li>Global search lintas entitas.</li>
+    <li>Footer disclaimer amber.</li>
+  </ul>
+
+  <h3>v1.0.0 — Januari 2026</h3>
+  <ul>
+    <li>Rilis awal dengan 7 modul: Dashboard, Pengajuan, Pegawai, SME, Knowledge Map, CoP, Knowledge Asset.</li>
+    <li>4 modul TMS: 9-Box, Talent Pool, Succession, Promosi.</li>
+    <li>Settings dengan reset data.</li>
+    <li>Deploy otomatis ke GitHub Pages.</li>
+  </ul>
+
+  <h3>Roadmap (tentative)</h3>
+  <table>
+    <tr><th style="width:32%">Area</th><th>Rencana</th></tr>
+    <tr><td>Multi-user</td><td>Tambahkan autentikasi sederhana + state user aktif, ganti konstanta <span class="mono">CURRENT_USER_ID</span>.</td></tr>
+    <tr><td>Backend</td><td>Migrasi ke backend (Cloudflare Workers + D1 atau Supabase) untuk persistence multi-device.</td></tr>
+    <tr><td>Dark mode</td><td>Tambah theme toggle dengan Tailwind dark variant.</td></tr>
+    <tr><td>Notifikasi</td><td>Implementasi notifikasi nyata (review reminder, Q&amp;A baru, dll).</td></tr>
+    <tr><td>Knowledge graph</td><td>Upgrade dari heuristik tag → embedding-based semantic search.</td></tr>
+    <tr><td>Audit trail</td><td>Log semua perubahan state untuk akuntabilitas.</td></tr>
+    <tr><td>Export PDF/Excel</td><td>Export laporan dari Skill Matrix, Succession, dan KM Analytics.</td></tr>
+    <tr><td>Pemecahan App.jsx</td><td>Pisah jadi file per-modul saat &gt; 5.000 baris.</td></tr>
+  </table>
+
+  <hr/>
+
+  <div class="center" style="margin-top: 30px;">
+    <p><strong>Terima kasih telah membaca Manual Book KMLS v1.1.</strong></p>
+    <p class="muted small">
+      Manual ini disusun sebagai bagian dari proyek personal MS Hadianto.<br/>
+      Untuk feedback, saran, atau kolaborasi: <span class="mono">sopian.hadianto@gmail.com</span>
+    </p>
+    <p class="muted small" style="margin-top: 18px;">
+      © 2026 MS Hadianto — KMLS Personal Prototype.<br/>
+      Bukan produk resmi BPKH (Badan Pengelola Keuangan Haji).
+    </p>
+  </div>
+</section>
+
+</body>
+</html>

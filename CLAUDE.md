@@ -17,6 +17,7 @@ When you write new UI copy, README sections, commit messages, or anything user-v
 - `vite.config.js` — **`base: '/'`** (site is served from custom domain root `klms.mshadianto.id`; if reverting to github.io subpath, switch back to `'/klms/'`).
 - `public/CNAME` — custom domain marker for GitHub Pages; copied to `dist/` as-is. Changing this changes the domain Pages serves on.
 - `mockups/` — 3 standalone HTML mockups (`dashboard.html`, `knowledge-management.html`, `talent-management.html`). These predate the JSX and are not loaded by the React app — they serve as the design reference and can be opened directly in a browser.
+- `docs/manual-book.html` — user-facing manual book (Bahasa Indonesia, ~33 halaman A4, print-ready → PDF). Self-contained HTML: inline CSS with `@page` rules + `@media print` blocks, no external assets. Audience is mixed (end-user + admin). **Keep in sync** with the app when you change module behavior, add a new module, or bump `APP_VERSION` — the manual references specific status maps, lifecycle states, and the 17 modules listed in `NAV_STRUCTURE`. If you only rename UI copy, don't bother; if you change a workflow or status enum, update the relevant section.
 - `.github/workflows/deploy.yml` — builds Vite and deploys `dist/` to GitHub Pages on every push to `main`.
 
 ## Common Commands
