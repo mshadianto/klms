@@ -6,4 +6,14 @@ dist
 .env
 .env.local
 .env.*.local
+
+# Tooling & catatan internal (tidak ikut serah terima)
 .claude/
+CLAUDE.md
+
+# Konfigurasi domain kustom milik pengembang
+CNAME
+public/CNAME
+
+# Dokumen internal non-aplikasi
+Valuasi & Akad Wakaf/
